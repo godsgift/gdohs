@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+ 
+<head>
+    <title>Garage Door Opener and Home Security</title>
+    <link rel="stylesheet" type="text/css" href="../static/styles.css">
+</head>
+	<body>
+		<div>
+			<h1>Sign Up</h1>
+			<form class="Sign Up">
+			<input type="text" name="username" id="username" placeholder="Username" required autofocus><br>
+            <input type="password" name="password" id="password" placeholder="Password" required autofocus><br>
+            <input type="email" name="email" id="email" placeholder="E-mail" required><br>
+            <input type="text" name="firstname" id="firstname" placeholder="First Name" required><br>
+            <input type="text" name="lastname" id="lastname" placeholder="Last Name" required><br>
+            <input type="submit" id="btnSignUp" class="button" value="Sign Up">
+            </form>
+        </div>
+    </body>
+    <script src="../static/jquery.js"></script>
+    <script type="text/javascript">
+    $(document).ready(function() {
+    	$('#btnSignUp').click(function() {
+
+    		$.ajax({
+    			url: '/signUp',
+    			data: $('form').serialize(),
+    			type: 'POST',
+    			success: function(response) {
+    				console.log(response);
+    			},
+    			error: function(error) {
+    				console.log(error);
+    			}
+    		});
+    	});
+    });
+    </script>
+</html>
+
