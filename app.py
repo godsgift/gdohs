@@ -1,12 +1,14 @@
 from flask import *
 from flask.ext.pymongo import PyMongo
 from flask.ext.security import Security
+from flask.ext.bcrypt import Bcrypt
 
 app = Flask(__name__)
 
 app.config['MONGO_DBNAME'] = 'gdohs'
 
 mongo = PyMongo(app)
+bcrypt = Bcrypt(app)
 
 #Running db:
 #mongod --dbpath data
@@ -31,19 +33,32 @@ def signUp():
 	_firstname = request.form['firstname']
 	_lastname = request.form['lastname']
 
-	#Add the new user to the
-	result = mongo.db.user.insert_one(
-		{
-			"username": _username,
-			"password": _password,
-			"email": _email,
-			"firstname": _firstname,
-			"lastname": _lastname
-		}
-	)
+	#Check if username already exists in the database
+	if (mongo.db.user.find_one({"username": _username})):
+		return render_template("index.html", code=307)
+	else:
+		#Encrypt the password
+		pw_hash = bcrypt.generate_password_hash(_password)
+		#Add the new user into the database
+		result = mongo.db.user.insert_one(
+			{
+				"username": _username,
+				"password": pw_hash,
+				"email": _email,
+				"firstname": _firstname,
+				"lastname": _lastname
+			}
+		)
 
-	return json.dumps({'html':'<span>Sign up Successful</span>'})
+	return render_template("index.html", code=307)
 
+@app.route("/checkUser", methods=['POST'])
+def checkUser():
+	return
+
+@app.route("/signUpSuccessful")
+def signUpSuccessful():
+	return
 
 if __name__ == "__main__":
 	app.run(debug=True, host='0.0.0.0')

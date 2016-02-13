@@ -1,0 +1,6 @@
+Mongodb
+Flask
+Flask-pymongo
+Pymongo
+flask-security
+flask-bcrypt
