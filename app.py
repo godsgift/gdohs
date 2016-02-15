@@ -1,6 +1,6 @@
 from flask import *
 from flask.ext.pymongo import PyMongo
-from flask.ext.security import Security
+# from flask.ext.security import Security
 from flask.ext.bcrypt import Bcrypt
 
 app = Flask(__name__)
@@ -19,6 +19,11 @@ def index():
 	#Redirect to home page
 	return render_template("index.html")
 
+@app.route("/home")
+def home():
+	#Redirect to home page
+	return render_template("index.html")
+
 @app.route("/showSignup")
 def showSignup():
 	#Redirect to the sign up page
@@ -33,9 +38,9 @@ def signUp():
 	_firstname = request.form['firstname']
 	_lastname = request.form['lastname']
 
-	#Check if username already exists in the database
+	#If username already exists in database, send to sign up failure page
 	if (mongo.db.user.find_one({"username": _username})):
-		return render_template("index.html", code=307)
+		return render_template("signupfail.html", code=307)
 	else:
 		#Encrypt the password
 		pw_hash = bcrypt.generate_password_hash(_password)
@@ -49,8 +54,8 @@ def signUp():
 				"lastname": _lastname
 			}
 		)
-
-	return render_template("index.html", code=307)
+	#Send to sign up success page if user was able to complete the sign up
+	return render_template("signupsuccess.html", code=307)
 
 @app.route("/checkUser", methods=['POST'])
 def checkUser():
