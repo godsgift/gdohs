@@ -3,3 +3,6 @@ Flask
 Flask-pymongo
 Pymongo
 flask-bcrypt
+	install libffi-dev before installing bcrypt
+	install build-essential autoconf libtool pkg-config python-opengl python-imaging python-pyrex
+
