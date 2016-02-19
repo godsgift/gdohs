@@ -19,11 +19,6 @@ def index():
 	#Redirect to home page
 	return render_template("index.html")
 
-@app.route("/home")
-def home():
-	#Redirect to home page
-	return render_template("index.html")
-
 @app.route("/showSignup")
 def showSignup():
 	#Redirect to the sign up page
