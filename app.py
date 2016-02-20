@@ -1,3 +1,4 @@
+import re
 from flask import *
 from flask.ext.pymongo import PyMongo
 # from flask.ext.security import Security
@@ -24,7 +25,7 @@ def showSignup():
 	#Redirect to the sign up page
 	return render_template("signup.html")
 
-@app.route("/signUp", methods=['POST'])
+@app.route("/signUp", methods=['POST', 'GET'])
 def signUp():
 	#Grab user input
 	_username = request.form['username']
@@ -32,6 +33,12 @@ def signUp():
 	_email = request.form['email']
 	_firstname = request.form['firstname']
 	_lastname = request.form['lastname']
+
+
+	#Check if any of ^ have any spaces before going below
+
+	string = "test this 	thing	\n"
+	print re.sub('[\s+]', '', string)
 
 	#If username already exists in database, send to sign up failure page
 	if (mongo.db.user.find_one({"username": _username})):
