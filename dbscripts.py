@@ -23,7 +23,7 @@ def main():
 
 	result = db.license.delete_many({})
 
-	#Create events table
+	#Create evetns table
 	result = db.events.insert_one(
 				{
 					"username": "test"

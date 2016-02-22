@@ -8,7 +8,7 @@ app = Flask(__name__)
 
 #Mongodb Settings
 app.config['MONGO_DBNAME'] = 'gdohs'
-
+#need to add username and pass for db
 
 #Enable extensions for flask
 mongo = PyMongo(app)

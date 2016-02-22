@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block head %}
+<link rel="stylesheet" type="text/css" href="../static/css/bootstrap.min.css">
+<link rel="stylesheet" type="text/css" href="../static/styles.css">
+{% endblock %}
+
+{% block content %}
+
+<form id="form" method="POST" action="/submit">
+    {{ form.hidden_tag() }}
+    {{ form.username.label(class_="text-white col-xs-6") }}<br> 
+    {{ form.username(size=20) }}
+    <input type="submit" value="Go">
+</form>
+
+{% endblock %}
+
+<script type="text/javascript">
+</script>
