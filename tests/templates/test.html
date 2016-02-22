@@ -8,8 +8,8 @@
 
 <form id="form" method="POST" action="/submit">
     {{ form.hidden_tag() }}
-    {{ form.username.label(class_="text-white col-xs-6") }}<br> 
-    {{ form.username(size=20) }}
+    {{ form.username.label(class_="text-white") }}<br> 
+    {{ form.username(size=20, placeholder="Username", class="form-control", autofocus=true) }}
     <input type="submit" value="Go">
 </form>
 

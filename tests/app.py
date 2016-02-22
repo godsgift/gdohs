@@ -3,8 +3,8 @@ from flask import *
 from flask.ext.pymongo import PyMongo
 from flask.ext.bcrypt import Bcrypt
 from flask_wtf import Form
-from wtforms import TextField
-from wtforms.validators import Required, ValidationError
+from wtforms import TextField, PasswordField, validators
+from wtforms.validators import Required, Length, Email, ValidationError, Regexp
 
 app = Flask(__name__)
 
@@ -48,15 +48,24 @@ def checkWhitespace(form, field):
 
 @app.route('/submit', methods=('GET', 'POST'))
 def submit():
-    signUpForm = SignUp()
-    #only goes through if all the fields have been validated
-    if signUpForm.validate_on_submit():
-        return render_template('index.html')
+	if (request.method == 'POST'):
+		form = SignUp(request.form)
+
+		if form.validate_on_submit():
+			username = form.username.data
+			print username
+			print "Username VALIDATED"
+		else:
+			print"USERNAME FAILED"
+			return render_template('test.html', form=form)
+	return render_template('test.html', form=SignUp())
+
     #return render_template('index.html', form=signUpForm)
 
 #CLASSES
 class SignUp(Form):
-	username = TextField('Username', [Required(), checkWhitespace])
+	username = TextField('Username', validators=[Required("Please provide a username without any spaces"),
+		Length(min=4, max=20), Regexp(r'^[\w.@+-]+$')])
 
 
 

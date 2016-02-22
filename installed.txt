@@ -5,4 +5,9 @@ Pymongo
 flask-bcrypt
 	install libffi-dev before installing bcrypt
 	install build-essential autoconf libtool pkg-config python-opengl python-imaging python-pyrex
+flask-wtf
+
+http://pythonthusiast.pythonblogs.com/230_pythonthusiast/archive/1315_flask_biography_tutorial_part_vi__adding_sign_up_form_using_bootstrap_3_and_flask-wtf.html
+
+https://runningcodes.net/flask-login-and-mongodb/
 

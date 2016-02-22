@@ -6,12 +6,63 @@
 
 {% block content %}
     <div class="col-xs-4 col-xs-offset-4">
-		<h1 class="text-center text-white">Sign Up</h1>
-		<form id="signUp" method="POST" action="/signUp">
+        <h1 class="text-center text-white">Sign Up</h1>
+        <form id="signUp" method="POST" action="/signUp">
+            {{ form.hidden_tag() }}
+            <div class="row">
+                <div class="text-center text-white">
+                {{ form.username.label(class_="text-white") }}<br> 
+                {{ form.username(placeholder="Username", class="form-control", autofocus=true) }}
+                <div class="text-danger">{{ form.username.errors[0] }}<br></div>
+                </div>
+            </div>
+            <div class="row">
+                <div class="text-center text-white">
+                {{ form.password.label(class_="text-white") }}<br> 
+                {{ form.password(placeholder="Password", class="form-control", autofocus=true) }}
+                <div class="text-danger row">{{ form.password.errors[0] }}<br></div>
+                </div>
+            </div>
+            <div class="row">
+                <div class="text-center text-white">
+                {{ form.email.label(class_="text-white") }}<br> 
+                {{ form.email(placeholder="Email", class="form-control") }}
+                <div class="text-danger row">{{ form.email.errors[0] }}<br></div>
+                </div>
+            </div>
+            <div class="row">
+                <div class="text-center text-white">
+                {{ form.firstname.label(class_="text-white") }}<br> 
+                {{ form.firstname(placeholder="First Name", class="form-control") }}
+                <div class="text-danger row">{{ form.firstname.errors[0] }}<br></div>
+                </div>
+            </div>
+            <div class="row">
+                <div class="text-center text-white">
+                {{ form.lastname.label(class_="text-white") }}<br> 
+                {{ form.lastname(placeholder="Last Name", class="form-control") }}
+                <div class="text-danger row">{{ form.lastname.errors[0] }}<br></div>
+                </div>
+            </div>
+            <div class="row">
+                <div class="text-center">
+                    <br>
+                    <input type="submit" id="btnSignUp" class="btn-success btn-lg" value="Create Account">
+                </div>
+            </div>
+        </form>
+
+    </div>
+
+{% endblock %}
+
+<!--     <div class="col-xs-4 col-xs-offset-4">
+        <h1 class="text-center text-white">Sign Up</h1>
+        <form id="signUp" method="POST" action="/signUp">
         <div class="row">
             <div class="text-center text-white">
                 <label for="Username">Username</label>
-    			<input class="form-control" type="text" name="username" id="username" placeholder="Username" required autofocus><br>
+                <input class="form-control" type="text" name="username" id="username" placeholder="Username" required autofocus><br>
             </div>
         </div>
         <div class="row">
@@ -44,8 +95,7 @@
             </div>
         </div>
         </form>
-    </div>
-{% endblock %}
+    </div> -->
 
     <script src="../static/jquery.js"></script>
     <script type="text/javascript">
