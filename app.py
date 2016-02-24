@@ -1,25 +1,41 @@
 import re
 from itsdangerous import TimedJSONWebSignatureSerializer as Serializer
+from random import randint
 from flask import *
 from flask.ext.pymongo import PyMongo
-# from flask.ext.security import Security
+from flask_mail import Mail, Message
 from flask.ext.bcrypt import Bcrypt
 from flask_wtf import Form
 from wtforms import TextField, PasswordField, validators
-from wtforms.validators import Required, Length, Email, ValidationError, Regexp
+from wtforms.validators import Required, Length, Email, ValidationError, Regexp, EqualTo
+
+##########################################################################
+#
+#								 GLOBAL
+#
+##########################################################################
 
 app = Flask(__name__)
 
 #Mongodb Settings
 app.config['MONGO_DBNAME'] = 'gdohs'
 #need to add username and pass for db
-
+# app.config['MAIL_SERVER'] = 'smtp.gmail.com'
+# app.config['MAIL_PORT'] = 587
+# app.config['MAIL_USE_TLS'] = True
+# app.config['MAIL_USE_SSL'] = True
+# app.config['MAIL_USERNAME'] = "stevenharperfan1@gmail.com"
+# app.config['MAIL_PASSWORD'] = "uest1onQ?"
 #WTFORMS Settings
 app.secret_key = 'testing'
 
 #Enable extensions for flask
 mongo = PyMongo(app)
 bcrypt = Bcrypt(app)
+mail = Mail(app)
+
+rand_num = randint(0,20000)
+
 
 #Running db:
 #mongod --dbpath data
@@ -94,24 +110,50 @@ def showForgotPassword():
 
 @app.route("/forgotPassword", methods=['GET', 'POST'])
 def forgotPassword():
-
 	if (request.method == 'POST'):
 		#create token
-		token = request.args.get('token', None)
 		form = ForgotPassword(request.form)
 
 		if form.validate_on_submit():
-			#get the email
+			#get the email data that the user input
 			_email = form.email.data
+			#Check if email exists
 			checkEmail = mongo.db.user.find_one({"email": _email})
 			if (checkEmail):
-				token = checkEmail.get_token()
-				print token
+				#Get required data based from the email
+				get_email = checkEmail["email"]
+				get_id = checkEmail["_id"]
+				get_fname = checkEmail["firstname"]
+				get_lname = checkEmail["lastname"]
+
+				get_num = rand_num
+				#Create a token using the id of the user
+				token = get_token(get_num)
+				#get the server IP and port
+				server = request.host
+
+				reset_pass_email(get_fname, get_lname)
+				#Add onto the database (reestpassword collection connected to the user)
+
+				#Send email with the link to their reset password to the user
+
+
+
 		return render_template("/forgotpassword.html", form=form)
 
 
-@app.route("/resetPassword")
-def resetPassword():
+@app.route("/showResetPassword")
+def showResetPassword():
+	form = NewPassword()
+	return render_template("newpassword.html", form=form)
+
+@app.route("/resetPassword/<token>")
+def resetPassword(token):
+	#if the decrypted token matches the one with the database, show the form
+		#get the user_id from database and find the same id in user collection
+
+		#if validate on submit
+			#
 	form = NewPassword()
 	return render_template("newpassword.html", form=form)
 
@@ -159,6 +201,10 @@ class NewPassword(Form):
 	password = PasswordField("Password", validators=[Required("Please pick a secure password"),
 		Regexp(r'^[\w.@+-]+$', message="Please provide a password without any spaces")])
 
+	confirm_password = PasswordField("Confirm Password", validators=[Required("Please type a password"),
+		Regexp(r'^[\w.@+-]+$', message="Please provide a password without any spaces"),
+		EqualTo("password", message="Passwords must match")])
+
 ##########################################################################
 #
 #							HELPER FUNCTIONS
@@ -177,10 +223,16 @@ def checkWhitespace(word):
 
 	return checker
 
-def get_token(self, expiration=100):
+def get_token(self, expiration=1800):
 	s = Serializer(app.secret_key, expiration)
-	return s.dumps({'username': self.id}).decode('utf-8')
+	test = s.dumps(self)
+	return test
 
+def reset_pass_email(firstname, lastname):
+	msg = Message("Hello " + firstname + lastname,sender="stevenharperfan1@gmail.com", recipients=["stevenharperfan1@gmail.com"])
+	msg.body = "This is the email body"
+	mail.send(msg)
+	return
 
 if __name__ == "__main__":
 	app.run(debug=True, host='0.0.0.0')
