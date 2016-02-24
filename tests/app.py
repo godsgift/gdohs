@@ -94,10 +94,8 @@ def showForgotPassword():
 
 @app.route("/forgotPassword", methods=['GET', 'POST'])
 def forgotPassword():
-
 	if (request.method == 'POST'):
 		#create token
-		token = request.args.get('token', None)
 		form = ForgotPassword(request.form)
 
 		if form.validate_on_submit():
@@ -105,9 +103,14 @@ def forgotPassword():
 			_email = form.email.data
 			checkEmail = mongo.db.user.find_one({"email": _email})
 			if (checkEmail):
-				token = checkEmail.get_token()
-				print token
+				print "THIS IS EMAIL FOUND"
+				print checkEmail
 		return render_template("/forgotpassword.html", form=form)
+
+@app.route("/showResetPassword")
+def showResetPassword():
+	form = NewPassword()
+	return render_template("newpassword.html", form=form)
 
 
 @app.route("/resetPassword")
@@ -187,7 +190,7 @@ def verify_token(token):
 		data = s.loads(token)
 	except:
 		return None
-		
+
 
 
 if __name__ == "__main__":

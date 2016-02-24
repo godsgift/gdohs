@@ -12,6 +12,7 @@ db = client.gdohs
 test = db.user.find_one({"username": "test"})
 
 
+
 print test
 
 
