@@ -1,4 +1,5 @@
 import re
+from config import *
 from itsdangerous import TimedJSONWebSignatureSerializer as Serializer
 from random import randint
 from flask import *
@@ -18,16 +19,16 @@ from wtforms.validators import Required, Length, Email, ValidationError, Regexp,
 app = Flask(__name__)
 
 #Mongodb Settings
-app.config['MONGO_DBNAME'] = 'gdohs'
+app.config['MONGO_DBNAME'] = DB_Name
 #need to add username and pass for db
-# app.config['MAIL_SERVER'] = 'smtp.gmail.com'
-# app.config['MAIL_PORT'] = 587
-# app.config['MAIL_USE_TLS'] = True
-# app.config['MAIL_USE_SSL'] = True
-# app.config['MAIL_USERNAME'] = "stevenharperfan1@gmail.com"
-# app.config['MAIL_PASSWORD'] = "uest1onQ?"
+app.config['MAIL_SERVER'] = 'smtp.gmail.com'
+app.config['MAIL_PORT'] = 465
+app.config['MAIL_USE_TLS'] = False
+app.config['MAIL_USE_SSL'] = True
+app.config['MAIL_USERNAME'] = Mail_User
+app.config['MAIL_PASSWORD'] = Mail_Pass
 #WTFORMS Settings
-app.secret_key = 'testing'
+app.secret_key = SECRET_KEY
 
 #Enable extensions for flask
 mongo = PyMongo(app)
@@ -225,8 +226,8 @@ def checkWhitespace(word):
 
 def get_token(self, expiration=1800):
 	s = Serializer(app.secret_key, expiration)
-	test = s.dumps(self)
-	return test
+	serializedToken = s.dumps(self)
+	return serializedToken
 
 def reset_pass_email(firstname, lastname):
 	msg = Message("Hello " + firstname + lastname,sender="stevenharperfan1@gmail.com", recipients=["stevenharperfan1@gmail.com"])
