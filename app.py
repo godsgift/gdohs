@@ -1,6 +1,12 @@
+##########################################################################
+#
+#								 IMPORTS
+#
+##########################################################################
+
 import re
 from config import *
-from itsdangerous import TimedJSONWebSignatureSerializer as Serializer
+from itsdangerous import TimedJSONWebSignatureSerializer as Serializer, BadSignature, SignatureExpired
 from random import randint
 from flask import *
 from flask.ext.pymongo import PyMongo
@@ -81,7 +87,8 @@ def signUp():
 					form.username.errors.append("Username already taken")
 					return render_template('signup.html', form=form)
 				elif (mongo.db.user.find_one({"email": _email})):
-					form.email.errors.append("Email already taken")
+					flash("Email already taken")
+					return render_template('signup.html', form=form)
 				else:
 					#Encrypt the password
 					pw_hash = bcrypt.generate_password_hash(_password)
@@ -98,8 +105,10 @@ def signUp():
 				#Send to sign up success page if user was able to complete the sign up
 				return render_template("signupsuccess.html")
 			else:
+				print "HERE 1"
 				return render_template('signup.html', form=form)
 		else:
+			print "HERE 2"
 			return render_template('signup.html', form=form)
 	return render_template('signup.html', form=SignUp())
 
@@ -114,44 +123,67 @@ def forgotPassword():
 	if (request.method == 'POST'):
 		#create token
 		form = ForgotPassword(request.form)
-
 		if form.validate_on_submit():
 			#get the email data that the user input
 			_email = form.email.data
-			#Check if email exists
-			checkEmail = mongo.db.user.find_one({"email": _email})
-			if (checkEmail):
-				#Get required data based from the email
-				get_email = checkEmail["email"]
-				get_id = checkEmail["_id"]
-				get_fname = checkEmail["firstname"]
-				get_lname = checkEmail["lastname"]
+			if (checkWhitespace(_email)):
+				#Check if email exists
+				checkEmail = mongo.db.user.find_one({"email": _email})
+				if (checkEmail):
+					#Get required data based from the email
+					get_email = checkEmail["email"]
+					get_user_id = checkEmail["_id"]
+					get_fname = checkEmail["firstname"]
+					get_lname = checkEmail["lastname"]
+					#get the server IP and port
+					server = request.host
+					get_num = rand_num
+					#Create a token using a random number
+					token = get_token(get_num)
+					link = server + "/showResetPassword/" + token
+					if mongo.db.resetpassword.find_one({"user_id": get_user_id}):
+						mongo.db.resetpassword.remove({"user_id": get_user_id})
+					else:
+						#Add onto a temporary document in the database
+						result = mongo.db.resetpassword.insert_one(
+							{
+								"user_id": get_user_id,
+								"email": get_email,
+								"random_number": get_num
+							}
+						)
+						flash("Password reset link has been sent to " + _email)
+						#Send email with the link to their reset password to the user
+						reset_pass_email(get_email, get_fname, get_lname, link)
+				else:
+					flash("Password reset has been sent to " + _email)
+					return render_template("/forgotpassword.html", form=ForgotPassword())
+			else:
+				print "GOT HERE"
+				return render_template("/forgotpassword.html", form=form)
+		else:
+			return render_template("/forgotpassword.html", form=form)
+	return render_template("/forgotpassword.html", form=ForgotPassword())
 
-				get_num = rand_num
-				#Create a token using the id of the user
-				token = get_token(get_num)
-				#get the server IP and port
-				server = request.host
 
-				reset_pass_email(get_fname, get_lname)
-				#Add onto the database (reestpassword collection connected to the user)
-
-				#Send email with the link to their reset password to the user
-
-
-
-		return render_template("/forgotpassword.html", form=form)
-
-
-@app.route("/showResetPassword")
-def showResetPassword():
+@app.route("/showResetPassword/<token>")
+def showResetPassword(token):
+	verified_token = verify_token(token)
+	print "TOKEN IS"
+	print verified_token
 	form = NewPassword()
+	if (verified_token == "Signature Expired"):
+		#Send to an error page
+	else:
+		#if the decrypted token matches the one with the database, show the form
+		#else show error
+		
+		return render_template("newpassword.html", form=form)
 	return render_template("newpassword.html", form=form)
 
-@app.route("/resetPassword/<token>")
-def resetPassword(token):
-	#if the decrypted token matches the one with the database, show the form
-		#get the user_id from database and find the same id in user collection
+@app.route("/resetPassword/")
+def resetPassword():
+
 
 		#if validate on submit
 			#
@@ -217,21 +249,36 @@ def checkWhitespace(word):
 	ws = re.search('[\s+]', word)
 	#True for no whitespace
 	checker = True
-
 	#If there is whitespace then set checker to false
 	if (ws):
 		checker = False
 
 	return checker
 
-def get_token(self, expiration=1800):
+def get_token(self, expiration=1):
 	s = Serializer(app.secret_key, expiration)
 	serializedToken = s.dumps(self)
 	return serializedToken
 
-def reset_pass_email(firstname, lastname):
-	msg = Message("Hello " + firstname + lastname,sender="stevenharperfan1@gmail.com", recipients=["stevenharperfan1@gmail.com"])
-	msg.body = "This is the email body"
+def verify_token(token):
+	s = Serializer(app.secret_key)
+	try:
+		data = s.loads(token)
+	except SignatureExpired:
+		return "Signature Expired"
+	except Badsignature:
+		return "Bad Signature"
+	return data
+
+def reset_pass_email(remail, firstname, lastname, link):
+	msg = Message("Hello " + firstname + " " + lastname,
+		sender=Mail_User,
+		recipients=[remail])
+
+	msg.html = "You have requested to reset your password. If you did not request to reset your password, you don't have to do anything. " + \
+	"Otherwise, click the link below to begin the process to reset your password." + "<br><br>" + \
+	link + "<br><br><br>" + "Please do not reply to this email."
+
 	mail.send(msg)
 	return
 

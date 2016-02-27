@@ -27,7 +27,15 @@
                 <div class="text-center text-white">
                     {{ form.email.label() }}<br> 
                     {{ form.email(placeholder="Email", class="form-control") }}
-                    <div class="text-danger row">{{ form.email.errors[0] }}<br></div>
+                    <div class="text-danger row">{{ form.email.errors[0] }}
+                    {% with messages = get_flashed_messages() %}
+                      {% if messages %}
+                        {% for message in messages %}
+                          {{ message }}
+                        {% endfor %}
+                      {% endif %}
+                    {% endwith %}
+                    <br></div>
                 </div>
             </div>
             <div class="row">
