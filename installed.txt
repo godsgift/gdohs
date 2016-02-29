@@ -7,4 +7,8 @@ flask-bcrypt
 	install build-essential autoconf libtool pkg-config python-opengl python-imaging python-pyrex
 flask-wtf
 itsdangerous
-sendgrid (for email)
+flask-mail
+
+------DB------
+user
+resetpassword

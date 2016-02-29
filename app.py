@@ -5,6 +5,7 @@
 ##########################################################################
 
 import re
+from forms import *
 from config import *
 from itsdangerous import TimedJSONWebSignatureSerializer as Serializer, BadSignature, SignatureExpired
 from random import randint
@@ -12,9 +13,7 @@ from flask import *
 from flask.ext.pymongo import PyMongo
 from flask_mail import Mail, Message
 from flask.ext.bcrypt import Bcrypt
-from flask_wtf import Form
-from wtforms import TextField, PasswordField, validators
-from wtforms.validators import Required, Length, Email, ValidationError, Regexp, EqualTo
+
 
 ##########################################################################
 #
@@ -41,7 +40,7 @@ mongo = PyMongo(app)
 bcrypt = Bcrypt(app)
 mail = Mail(app)
 
-rand_num = randint(0,20000)
+rand_num = randint(0,200000)
 
 
 #Running db:
@@ -71,7 +70,7 @@ def signUp():
 		#Grab the data from user input
 		form = SignUp(request.form)
 		#If the form has been validated
-		if form.validate_on_submit():
+		if (form.validate_on_submit()):
 			#Grab data from each field
 			_username = form.username.data
 			_password = form.password.data
@@ -105,10 +104,8 @@ def signUp():
 				#Send to sign up success page if user was able to complete the sign up
 				return render_template("signupsuccess.html")
 			else:
-				print "HERE 1"
 				return render_template('signup.html', form=form)
 		else:
-			print "HERE 2"
 			return render_template('signup.html', form=form)
 	return render_template('signup.html', form=SignUp())
 
@@ -123,7 +120,7 @@ def forgotPassword():
 	if (request.method == 'POST'):
 		#create token
 		form = ForgotPassword(request.form)
-		if form.validate_on_submit():
+		if (form.validate_on_submit()):
 			#get the email data that the user input
 			_email = form.email.data
 			if (checkWhitespace(_email)):
@@ -142,7 +139,7 @@ def forgotPassword():
 					token = get_token(get_num)
 					link = server + "/showResetPassword/" + token
 					if mongo.db.resetpassword.find_one({"user_id": get_user_id}):
-						mongo.db.resetpassword.remove({"user_id": get_user_id})
+						mongo.db.resetpassword.delete_one({"user_id": get_user_id})
 					else:
 						#Add onto a temporary document in the database
 						result = mongo.db.resetpassword.insert_one(
@@ -169,74 +166,67 @@ def forgotPassword():
 @app.route("/showResetPassword/<token>")
 def showResetPassword(token):
 	verified_token = verify_token(token)
-	print "TOKEN IS"
-	print verified_token
 	form = NewPassword()
 	if (verified_token == "Signature Expired"):
 		#Send to an error page
+		flash("Signature Token Expired")
+		return render_template("messages.html")
+	elif (verified_token == "Bad Signature"):
+		#Send to an error page
+		flash("Bad Token Signature")
+		return render_template("messages.html")
 	else:
-		#if the decrypted token matches the one with the database, show the form
-		#else show error
-		
+		#Find the user_id with the same token
+		temp_user = mongo.db.resetpassword.find_one({"random_number": verified_token})
+		if (temp_user):
+			#Find the user with the correct ID
+			user_id = temp_user["user_id"]
+			user = mongo.db.user.find_one({"_id": user_id})
+			data = str(user["username"])
+			#Add the user into a session
+			session["username_rpass"] = data
+			flash("Hello " + data + ". Please enter your new password.")
+			return render_template("newpassword.html", form=form)
 		return render_template("newpassword.html", form=form)
 	return render_template("newpassword.html", form=form)
 
-@app.route("/resetPassword/")
+@app.route("/resetPassword", methods=['GET', 'POST'])
 def resetPassword():
+	#Grab the user from session
+	_user = session["username_rpass"]
+	#Find the user ID that requested the reset password
+	find_user = mongo.db.user.find_one({"username": _user})
+	user_id = find_user["_id"]
+	if (request.method == 'POST'):
+		form = NewPassword(request.form)
+		if (form.validate_on_submit()):
+			#Grab the data from the fields
+			_password = form.password.data
+			_confirm_password = form.confirm_password.data
+			#If the passwords match, begin updating the database for the user
+			if (_password == _confirm_password):
+				#Hash the password
+				pw_hash = bcrypt.generate_password_hash(_password)
+				#Update database for user from the session
+				mongo.db.user.update_one({"_id": user_id}, {"$set": {"password": pw_hash}})
+				#Delete the user from the session
+				session.pop("username_rpass", None)
+				#Delete user from temporary database
+				mongo.db.resetpassword.delete_one({"user_id": user_id})
+				flash("You have successfully reset your password.")
+				return render_template("messages.html")
 
-
-		#if validate on submit
-			#
-	form = NewPassword()
+			flash("Hello " + _user + ". Please enter your new password")
+			return render_template("newpassword.html", form=form)
+		else:
+			flash("Hello " + _user + ". Please enter your new password")
+			return render_template("newpassword.html", form=form)
+		flash("Hello " + _user + ". Please enter your new password")
 	return render_template("newpassword.html", form=form)
 
 @app.route("/login")
 def login():
 	return
-
-
-##########################################################################
-#
-#								CLASSES
-#
-##########################################################################
-
-class SignUp(Form):
-	username = TextField("Username", validators=[Required("Please provide a username without any spaces"),
-		Length(min=4, max=20), Regexp(r'^[\w.@+-]+$', message="Please provide a username without any spaces")])
-
-	password = PasswordField("Password", validators=[Required("Please pick a secure password"),
-		Regexp(r'^[\w.@+-]+$', message="Please provide a password without any spaces")])
-
-	email = TextField("Email", validators=[Required("Please provide a valid email address"),
-		Length(min=6, max=35), Email(message="That is not a valid email address"),
-		Regexp(r'^[\w.@+-]+$', message="Please provide an email without any spaces")])
-
-	firstname = TextField("First Name", validators=[Required("Please provide your first name"),
-		Regexp(r'^[\w.@+-]+$', message="Please enter your first name without any spaces")])
-
-	lastname = TextField("Last Name", validators=[Required("Please provide your last name"),
-		Regexp(r'^[\w.@+-]+$', message="Please enter your last name without any spaces")])
-
-class Login(Form):
-	username = TextField("Username", validators=[Required("Please provide a username without any spaces"),
-		Length(min=4, max=20), Regexp(r'^[\w.@+-]+$', message="Please provide a username without any spaces")])
-
-	password = PasswordField("Password", validators=[Required("Please pick a secure password"),
-		Regexp(r'^[\w.@+-]+$', message="Please provide a password without any spaces")])
-
-class ForgotPassword(Form):
-	email = TextField("Email", validators=[Required("Please provide a valid email address"),
-		Length(min=6, max=35), Email(message="That is not a valid email address"),
-		Regexp(r'^[\w.@+-]+$', message="Please provide an email without any spaces")])
-
-class NewPassword(Form):
-	password = PasswordField("Password", validators=[Required("Please pick a secure password"),
-		Regexp(r'^[\w.@+-]+$', message="Please provide a password without any spaces")])
-
-	confirm_password = PasswordField("Confirm Password", validators=[Required("Please type a password"),
-		Regexp(r'^[\w.@+-]+$', message="Please provide a password without any spaces"),
-		EqualTo("password", message="Passwords must match")])
 
 ##########################################################################
 #
@@ -255,7 +245,7 @@ def checkWhitespace(word):
 
 	return checker
 
-def get_token(self, expiration=1):
+def get_token(self, expiration=1800):
 	s = Serializer(app.secret_key, expiration)
 	serializedToken = s.dumps(self)
 	return serializedToken
@@ -276,7 +266,8 @@ def reset_pass_email(remail, firstname, lastname, link):
 		recipients=[remail])
 
 	msg.html = "You have requested to reset your password. If you did not request to reset your password, you don't have to do anything. " + \
-	"Otherwise, click the link below to begin the process to reset your password." + "<br><br>" + \
+	"Otherwise, click the link below to begin the process to reset your password." + \
+	"You have 30 minutes before the link expires." + "<br><br>" + \
 	link + "<br><br><br>" + "Please do not reply to this email."
 
 	mail.send(msg)
