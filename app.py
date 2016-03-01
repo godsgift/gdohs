@@ -13,6 +13,7 @@ from flask import *
 from flask.ext.pymongo import PyMongo
 from flask_mail import Mail, Message
 from flask.ext.bcrypt import Bcrypt
+from flask.ext.login import LoginManager, UserMixin, login_required, login_user, logout_user
 
 
 ##########################################################################
@@ -34,6 +35,8 @@ app.config['MAIL_USERNAME'] = Mail_User
 app.config['MAIL_PASSWORD'] = Mail_Pass
 #WTFORMS Settings
 app.secret_key = SECRET_KEY
+login_manager = LoginManager()
+login_manager.init_app(app)
 
 #Enable extensions for flask
 mongo = PyMongo(app)
@@ -57,6 +60,29 @@ def index():
 	form = Login()
 	#Redirect to home page
 	return render_template("index.html", form=form)
+
+@app.route("/login", methods=["GET", "POST"])
+def login():
+	if (request.method == 'POST'):
+		form = Login(request.form)
+		if(form.validate_on_submit()):
+			#user input
+			_username = form.username.data
+			_password = form.password.data
+
+			#check if user exist in db
+			user = mongo.db.user.find_one({"username": _username})
+			#from database
+			user_id = user["_id"]
+			user_name = user["username"]
+			user_pass = user["password"]
+			if (user and User.validate_login(user_pass, _password)):
+				user_obj = User(user_id, user_name, user_pass)
+				login_user(user_obj)
+				next = request.args.get('next')
+				return redirect(next or url_for("video"))
+		return render_template("index.html", form=form)
+	return render_template("video.html", form=form)
 
 @app.route("/showSignup")
 def showSignup():
@@ -224,15 +250,74 @@ def resetPassword():
 		flash("Hello " + _user + ". Please enter your new password")
 	return render_template("newpassword.html", form=form)
 
-@app.route("/login")
-def login():
-	return
+#Sends to this page only if user is trying to access page that requires to be logged in
+@login_manager.unauthorized_handler
+def unauthorized_handler():
+	flash("Must be logged in to view this page.")
+	return render_template("messages.html")
+
+##########################################################################
+#
+#							   LOGGED IN
+#
+##########################################################################
+
+@app.route("/video", methods=['GET', 'POST'])
+@login_required
+def video():
+	return render_template("video.html")
+
+@app.route("/logout")
+@login_required
+def logout():
+	logout_user()
+	form = Login()
+	return render_template("index.html", form=form)
+
+##########################################################################
+#
+#								CLASSES
+#
+##########################################################################
+
+class User():
+	def __init__(self, id, username, password):
+		self.id = id
+		self.username = username
+		self.password = password
+
+	def is_active(self):
+		return True
+
+	def is_authenticated(self):
+		return True
+
+	def is_anonymous(self):
+		return False
+
+	def get_id(self):
+		return self.username
+
+	@staticmethod
+	def validate_login(pw_hash, password):
+		return bcrypt.check_password_hash(pw_hash, password)
 
 ##########################################################################
 #
 #							HELPER FUNCTIONS
 #
 ##########################################################################
+@login_manager.user_loader
+def load_user(username):
+	user_id = mongo.db.user.find_one({"username": username})
+	if not user_id:
+		return None
+	else:
+		_id = unicode(user_id["_id"])
+		_username = user_id["username"]
+		_password = user_id["password"]
+	return User(_id, _username, _password)
+
 
 def checkWhitespace(word):
 	#Checks for all types of whitespaces including \t, \n, \f, \v
