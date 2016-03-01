@@ -63,6 +63,7 @@ def index():
 
 @app.route("/login", methods=["GET", "POST"])
 def login():
+	#STILL HAVE TO DO ERROR CHECKING
 	if (request.method == 'POST'):
 		form = Login(request.form)
 		if(form.validate_on_submit()):
@@ -73,16 +74,30 @@ def login():
 			#check if user exist in db
 			user = mongo.db.user.find_one({"username": _username})
 			#from database
-			user_id = user["_id"]
-			user_name = user["username"]
-			user_pass = user["password"]
-			if (user and User.validate_login(user_pass, _password)):
-				user_obj = User(user_id, user_name, user_pass)
-				login_user(user_obj)
-				next = request.args.get('next')
-				return redirect(next or url_for("video"))
+			if (user):
+
+				user_id = user["_id"]
+				user_name = user["username"]
+				user_pass = user["password"]
+
+				if (User.validate_login(user_pass, _password)):
+					user_obj = User(user_id, user_name, user_pass)
+					login_user(user_obj)
+					next = request.args.get('next')
+					return redirect(next or url_for("video"))
+				else:
+					flash("Incorrect username or password.")
+					return render_template("index.html", form=form)
+
+			else:
+				flash("Incorrect username or password.")
+				return render_template("index.html", form=form)
+		else:
+			flash("Incorrect username or password.")
+			return render_template("index.html", form=form)
+	else:
+		flash("Incorrect username or password.")
 		return render_template("index.html", form=form)
-	return render_template("video.html", form=form)
 
 @app.route("/showSignup")
 def showSignup():

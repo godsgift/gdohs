@@ -27,6 +27,16 @@
                 </div>
             </div>
         </form>
+        <div class="text-center text-danger">
+        {% with messages = get_flashed_messages() %}
+          {% if messages %}
+            {% for message in messages %}
+              {{ message }}
+            {% endfor %}
+          {% endif %}
+        {% endwith %}
+        <br>
+        </div>
     </div>
 
     <div class="text-center text-white">
