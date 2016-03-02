@@ -5,6 +5,7 @@
 ##########################################################################
 
 import re
+from rpi_camera import *
 from forms import *
 from config import *
 from itsdangerous import TimedJSONWebSignatureSerializer as Serializer, BadSignature, SignatureExpired
@@ -280,7 +281,9 @@ def unauthorized_handler():
 @app.route("/video", methods=['GET', 'POST'])
 @login_required
 def video():
-	return render_template("video.html")
+	#Send the video feed
+	return Response(gen(Camera()),
+		mimetype='multipart/x-mixed-replace; boundary=frame')
 
 @app.route("/logout")
 @login_required
@@ -322,6 +325,7 @@ class User():
 #							HELPER FUNCTIONS
 #
 ##########################################################################
+#Adds the user into the session
 @login_manager.user_loader
 def load_user(username):
 	user_id = mongo.db.user.find_one({"username": username})
@@ -333,6 +337,11 @@ def load_user(username):
 		_password = user_id["password"]
 	return User(_id, _username, _password)
 
+def gen(camera):
+	while True:
+		frame = camera.get_frame()
+		yield (b'--frame\r\n'
+			b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
 
 def checkWhitespace(word):
 	#Checks for all types of whitespaces including \t, \n, \f, \v
@@ -374,4 +383,4 @@ def reset_pass_email(remail, firstname, lastname, link):
 	return
 
 if __name__ == "__main__":
-	app.run(debug=True, host='0.0.0.0')
+	app.run(debug=True, host='0.0.0.0', threaded=True)

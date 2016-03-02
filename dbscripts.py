@@ -33,13 +33,13 @@ def main():
 	result = db.events.delete_many({})
 
 	#Create cars table
-	result = db.cars.insert_one(
+	result = db.resetpassword.insert_one(
 				{
 					"username": "test"
 				}
 			)
 
-	result = db.cars.delete_many({})
+	result = db.resetpassword.delete_many({})
 
 if __name__ == "__main__":
 	main()
