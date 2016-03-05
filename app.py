@@ -19,7 +19,6 @@ from flask_mail import Mail, Message
 from flask.ext.bcrypt import Bcrypt
 from flask.ext.login import LoginManager, UserMixin, login_required, login_user, logout_user
 
-
 ##########################################################################
 #
 #								 GLOBAL
@@ -343,7 +342,6 @@ def load_user(username):
 		_username = user_id["username"]
 		_password = user_id["password"]
 	return User(_id, _username, _password)
-
 
 def create_savefile(filetype):
     dateTime = time.strftime("%Y-%m-%d,%I%M")

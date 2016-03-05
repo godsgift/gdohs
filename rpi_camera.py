@@ -3,7 +3,6 @@ import io
 import threading
 import picamera
 
-
 class Camera(object):
     thread = None
     frame = None
@@ -31,15 +30,13 @@ class Camera(object):
         camera.capture(stream, format="jpeg", use_video_port=True)
         pass
 
+
     @classmethod
     def _thread(cls):
+
         with picamera.PiCamera() as camera:
             # camera setup
             camera.resolution = (320, 240)
-            camera.hflip = True
-            camera.vflip = True
-            camera.start_recording('test.h264', quality=20)
-            camera.wait_recording(5)
             stream = io.BytesIO()
             for foo in camera.capture_continuous(stream, 'jpeg',
                                                  use_video_port=True):
@@ -53,9 +50,9 @@ class Camera(object):
 
                 #Stop the thread after 3 seconds of no clients
                 if time.time() - cls.start > 3:
+                    stream.seek(0)
+                    stream.truncate()
                     break
-            camera.wait_recording(5)
-            camera.stop_recording()
         cls.thread = None
 
     
