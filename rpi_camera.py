@@ -5,9 +5,10 @@ import picamera
 
 
 class Camera(object):
-    thread = None  # background thread that reads frames from camera
-    frame = None  # current frame is stored here by background thread
-    last_access = 0  # time of last client access to the camera
+    thread = None
+    frame = None
+    start = 0
+    create_savefile = ""
 
     def initialize(self):
         if Camera.thread is None:
@@ -20,9 +21,15 @@ class Camera(object):
                 time.sleep(0)
 
     def get_frame(self):
-        Camera.last_access = time.time()
+        Camera.start = time.time()
         self.initialize()
         return self.frame
+
+    def detect_motion(camera):
+        global prior_image
+        stream = io.BytesIO()
+        camera.capture(stream, format="jpeg", use_video_port=True)
+        pass
 
     @classmethod
     def _thread(cls):
@@ -31,11 +38,8 @@ class Camera(object):
             camera.resolution = (320, 240)
             camera.hflip = True
             camera.vflip = True
-
-            # let camera warm up
-            camera.start_preview()
-            time.sleep(2)
-
+            camera.start_recording('test.h264', quality=20)
+            camera.wait_recording(5)
             stream = io.BytesIO()
             for foo in camera.capture_continuous(stream, 'jpeg',
                                                  use_video_port=True):
@@ -47,8 +51,11 @@ class Camera(object):
                 stream.seek(0)
                 stream.truncate()
 
-                # if there hasn't been any clients asking for frames in
-                # the last 10 seconds stop the thread
-                if time.time() - cls.last_access > 10:
+                #Stop the thread after 3 seconds of no clients
+                if time.time() - cls.start > 3:
                     break
+            camera.wait_recording(5)
+            camera.stop_recording()
         cls.thread = None
+
+    

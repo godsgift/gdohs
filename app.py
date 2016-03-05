@@ -5,7 +5,10 @@
 ##########################################################################
 
 import re
-from rpi_camera import *
+import picamera
+import io
+import time
+from rpi_camera import Camera
 from forms import *
 from config import *
 from itsdangerous import TimedJSONWebSignatureSerializer as Serializer, BadSignature, SignatureExpired
@@ -278,12 +281,16 @@ def unauthorized_handler():
 #
 ##########################################################################
 
-@app.route("/video", methods=['GET', 'POST'])
+@app.route("/videostream")
+@login_required
+def videostream():
+	return Response(generate_frames(Camera()),
+                    mimetype='multipart/x-mixed-replace; boundary=frame')
+
+@app.route("/video")
 @login_required
 def video():
-	#Send the video feed
-	return Response(gen(Camera()),
-		mimetype='multipart/x-mixed-replace; boundary=frame')
+	return render_template("video.html")
 
 @app.route("/logout")
 @login_required
@@ -337,11 +344,19 @@ def load_user(username):
 		_password = user_id["password"]
 	return User(_id, _username, _password)
 
-def gen(camera):
-	while True:
-		frame = camera.get_frame()
-		yield (b'--frame\r\n'
-			b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
+
+def create_savefile(filetype):
+    dateTime = time.strftime("%Y-%m-%d,%I%M")
+    location = "videos/"
+    filename = location + dateTime  + "." + filetype
+    return filename
+	    
+def generate_frames(camera):
+    """Video streaming generator function."""
+    while True:
+        frame = camera.get_frame()
+        yield (b'--frame\r\n'
+               b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
 
 def checkWhitespace(word):
 	#Checks for all types of whitespaces including \t, \n, \f, \v
