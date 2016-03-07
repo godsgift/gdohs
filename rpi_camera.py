@@ -6,6 +6,7 @@ import picamera
 class Camera(object):
     thread = None
     frame = None
+    frame2 = None
     start = 0
     create_savefile = ""
 
@@ -43,15 +44,13 @@ class Camera(object):
                 # store frame
                 stream.seek(0)
                 cls.frame = stream.read()
-
+                print cls.frame
                 # reset stream for next frame
                 stream.seek(0)
                 stream.truncate()
 
                 #Stop the thread after 3 seconds of no clients
                 if time.time() - cls.start > 3:
-                    stream.seek(0)
-                    stream.truncate()
                     break
         cls.thread = None
 

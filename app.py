@@ -19,6 +19,7 @@ from flask_mail import Mail, Message
 from flask.ext.bcrypt import Bcrypt
 from flask.ext.login import LoginManager, UserMixin, login_required, login_user, logout_user
 
+
 ##########################################################################
 #
 #								 GLOBAL
@@ -87,7 +88,7 @@ def login():
 					user_obj = User(user_id, user_name, user_pass)
 					login_user(user_obj)
 					next = request.args.get('next')
-					return redirect(next or url_for("video"))
+					return redirect(next or url_for("showProfile"))
 				else:
 					flash("Incorrect username or password.")
 					return render_template("index.html", form=form)
@@ -298,6 +299,12 @@ def logout():
 	form = Login()
 	return render_template("index.html", form=form)
 
+@app.route("/showProfile")
+@login_required
+def showProfile():
+	form = ChangePassword()
+	return render_template("profile.html", form=form)
+
 ##########################################################################
 #
 #								CLASSES
@@ -342,6 +349,7 @@ def load_user(username):
 		_username = user_id["username"]
 		_password = user_id["password"]
 	return User(_id, _username, _password)
+
 
 def create_savefile(filetype):
     dateTime = time.strftime("%Y-%m-%d,%I%M")

@@ -35,6 +35,17 @@ class NewPassword(Form):
 	password = PasswordField("Password", validators=[Required("Please pick a secure password"),
 		Regexp(r'^[\w.@+-]+$', message="Please provide a password without any spaces")])
 
-	confirm_password = PasswordField("Confirm Password", validators=[Required("Please type a password"),
+	confirm_password = PasswordField("Confirm Password", validators=[Required("Required"),
+		Regexp(r'^[\w.@+-]+$', message="Please provide a password without any spaces"),
+		EqualTo("password", message="Passwords must match")])
+
+class ChangePassword(Form):
+	current_password = PasswordField("Current Password", validators=[Required("Please type in your current password"),
+		Regexp(r'^[\w.@+-]+$', message="Please provide a password without any spaces")])
+
+	password = PasswordField("New Password", validators=[Required("Please pick a secure password"),
+		Regexp(r'^[\w.@+-]+$', message="Please provide a password without any spaces")])
+
+	confirm_password = PasswordField("Confirm Password", validators=[Required("Required"),
 		Regexp(r'^[\w.@+-]+$', message="Please provide a password without any spaces"),
 		EqualTo("password", message="Passwords must match")])
