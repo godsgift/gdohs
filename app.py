@@ -287,10 +287,15 @@ def videostream():
 	return Response(generate_frames(Camera()),
                     mimetype='multipart/x-mixed-replace; boundary=frame')
 
-@app.route("/video")
+@app.route("/livestream")
 @login_required
-def video():
-	return render_template("video.html")
+def livestream():
+	return render_template("live-stream.html")
+
+@app.route("/recordvideos")
+@login_required
+def recordvideos():
+	return render_template("recordvideos.html")
 
 @app.route("/logout")
 @login_required

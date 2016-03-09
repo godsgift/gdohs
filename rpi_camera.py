@@ -6,14 +6,12 @@ import picamera
 class Camera(object):
     thread = None
     frame = None
-    frame2 = None
     start = 0
-    create_savefile = ""
 
-    def initialize(self):
+    def create_thread(self):
         if Camera.thread is None:
-            # start background frame thread
-            Camera.thread = threading.Thread(target=self._thread)
+            #create the thread
+            Camera.thread = threading.Thread(target=self.livestream)
             Camera.thread.start()
 
             # wait until frames start to be available
@@ -22,30 +20,23 @@ class Camera(object):
 
     def get_frame(self):
         Camera.start = time.time()
-        self.initialize()
+        self.create_thread()
         return self.frame
 
-    def detect_motion(camera):
-        global prior_image
-        stream = io.BytesIO()
-        camera.capture(stream, format="jpeg", use_video_port=True)
-        pass
-
-
     @classmethod
-    def _thread(cls):
-
+    def livestream(cls):
         with picamera.PiCamera() as camera:
             # camera setup
-            camera.resolution = (320, 240)
+            camera.resolution = (640, 480)
+            camera.framerate = 24
             stream = io.BytesIO()
             for foo in camera.capture_continuous(stream, 'jpeg',
                                                  use_video_port=True):
-                # store frame
+                #store the frame to be shown later
                 stream.seek(0)
                 cls.frame = stream.read()
-                print cls.frame
-                # reset stream for next frame
+
+                #reset the stream for the next frame
                 stream.seek(0)
                 stream.truncate()
 
