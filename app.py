@@ -297,18 +297,34 @@ def livestream():
 def recordvideos():
 	return render_template("recordvideos.html")
 
-@app.route("/logout")
+@app.route("/downloadvideos")
 @login_required
-def logout():
-	logout_user()
-	form = Login()
-	return render_template("index.html", form=form)
+def downloadvideos():
+	return render_template("video.html")
+
+@app.route("/downloadimages")
+@login_required
+def downloadimages():
+	return render_template("image.html")
+
+@app.route("/settings")
+@login_required
+def settings():
+	form = CamSettings()
+	return render_template("settings.html", form=form)
 
 @app.route("/showProfile")
 @login_required
 def showProfile():
 	form = ChangePassword()
 	return render_template("profile.html", form=form)
+
+@app.route("/logout")
+@login_required
+def logout():
+	logout_user()
+	form = Login()
+	return render_template("index.html", form=form)
 
 ##########################################################################
 #

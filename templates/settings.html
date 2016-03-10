@@ -1,0 +1,101 @@
+{% extends "login-layout.html" %}
+{% block head %}
+<link rel="stylesheet" type="text/css" href="../static/css/bootstrap.min.css">
+<link rel="stylesheet" type="text/css" href="../static/styles.css">
+{% endblock %}
+
+{% block content %}
+	<div class="col-xs-6">
+	    <h1 class="text-center text-white">Camera Settings</h1>
+	    <form id="settings" method="POST" action="">
+	        {{ form.hidden_tag() }}
+	        <div class="row">
+	            <div class="text-center text-white">
+	                {{ form.brightness.label() }}<br> 
+	                {{ form.brightness(class="form-control") }}
+	                <div class="text-danger">{{ form.brightness.errors[0] }}<br></div>
+	            </div>
+	        </div>
+	        <div class="row">
+	            <div class="text-center">
+	                {{ form.resolution.label(class="text-white") }}<wbr>
+	                {{ form.resolution() }}
+	                <div class="text-danger">{{ form.resolution.errors[0] }}<br></div>
+	            </div>
+	        </div>
+	        <div class="row">
+	            <div class="text-center">
+	                {{ form.video_time.label(class="text-white") }}<wbr>
+	                {{ form.video_time() }}
+	                <div class="text-danger">{{ form.video_time.errors[0] }}<br></div>
+	            </div>
+	        </div>
+	        <div class="row">
+	            <div class="text-center">
+	                {{ form.video_num.label(class="text-white") }}<wbr>
+	                {{ form.video_num() }}
+	                <div class="text-danger">{{ form.video_num.errors[0] }}<br></div>
+	            </div>
+	        </div>
+	        <div class="row">
+	            <div class="text-center text-white">
+	                {{ form.hflip.label() }}<wbr><wbr>
+	                {{ form.hflip() }}
+	                <div class="text-danger">{{ form.hflip.errors[0] }}<br></div>
+	            </div>
+	        </div>
+	        <div class="row">
+	            <div class="text-center text-white">
+	                {{ form.vflip.label() }}<wbr><wbr>
+	                {{ form.vflip() }}
+	                <div class="text-danger">{{ form.vflip.errors[0] }}<br></div>
+	            </div>
+	        </div>
+	        <div class="row">
+	            <div class="text-center">
+	                <br>
+	                <input type="submit" id="btnSettings" class="btn-success btn-lg" value="Save">
+	            </div>
+	        </div>
+	    </form>
+	</div>
+	<div class="col-xs-6">
+		<h1 class="text-white text-center">Settings Explanations</h1>
+		<div class="row">
+		    <div class="text-center text-white">
+		    The brightness of the camera can be changed betwee 0 and 100. The default value for the brightness is 50, which is what 
+		    it usually uses for indoor/outdoor usage. However you may want to change it depending on your preference.
+		    </div>
+		</div>
+		<br>
+		<div class="row">
+		    <div class="text-center text-white">
+		    The default resolution for the camera is 640 x 480. This is the best resolution for using the camera when recording with the application. However you may still choose the other resolution but it may cause some problems. Please use caution when choosing a different resolution.
+		    </div>
+		</div>
+		<br>
+		<div class="row">
+		    <div class="text-center text-white">
+		    The video timing allows you to choose different hour times for the each video clips. In short the videos produced will have 5 hours of video clip should you choose 5 hours.
+		    </div>
+		</div>
+		<br>
+		<div class="row">
+		    <div class="text-center text-white">
+		    The video number option allows you to choose how many video's will be produced. The default number is 10 which means that at the end of the recording session, there will be 10 videos that will be outputted. This works in tandem with video timing and allows you to create your own combination of video files. For example, choosing video timing of 10 hours and video number of 10 will produce 10 videos that are each 10 hours long.
+		    </div>
+		</div>
+		<br>
+		<div class="row">
+		    <div class="text-center text-white">
+		    Marking the horizontal flip will flip the camera horizontally. This is in place in case the camera may be placed in a weird spot and requires to be horizontally flipped.
+		    </div>
+		</div>
+		<br>
+		<div class="row">
+		    <div class="text-center text-white">
+		    Marking the vertical flip will flip the camera vertically. This is in place in case the camera may be placed in a weird spot and requires to be vertically flipped.
+		    </div>
+		</div>
+	</div>
+{% endblock %}

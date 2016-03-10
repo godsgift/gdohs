@@ -32,7 +32,7 @@ class Camera(object):
             stream = io.BytesIO()
             for foo in camera.capture_continuous(stream, 'jpeg',
                                                  use_video_port=True):
-                #store the frame to be shown later
+                #store the frame to be shown
                 stream.seek(0)
                 cls.frame = stream.read()
 
