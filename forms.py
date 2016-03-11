@@ -54,15 +54,9 @@ class CamSettings(Form):
 	brightness = IntegerField("Brightness", default=50, validators=[Required("Please choose a number between 0 and 100"),
 		NumberRange(min=0, max=100, message="Please choose a number between 0 and 100")])
 
-	resolution = SelectField("Video/Image Resolution: ", choices=[(1, "320 x 240"), (2, "640 x 480"), (3, "1920 x 1080")],
-	 default=2, validators=[(Required("Required"))])
+	resolution = SelectField("Video/Image Resolution: ", choices=[("320,240", "320 x 240"), ("640,480", "640 x 480"), 
+		("1280,1024", "1280 x 1024"), ("1920,1080", "1920 x 1080")], default="640,480", validators=[(Required("Required"))])
 
-	video_time = SelectField("Video Timing: ", choices=[(1, "1 Hour"), (2, "5 Hours"), (3, "10 Hours"), (4, "16 Hours"), (5, "24 Hours")], 
-		default=3, validators=[Required("Required")])
+	hflip = BooleanField("Horizontal Flip: ", default=False)
 
-	video_num = SelectField("Video Number: ", choices=[(8, 8),(9, 9),(10, 10),(11, 11),(12, 12),(13, 13),(14, 14),(15, 15),
-		(16, 16), (17, 17), (18, 18), (19, 19),(20, 20)], default=10, validators=[Required("Required")])
-
-	hflip = BooleanField("Horizontal Flip: ", default=False, validators=[Required("Required")])
-
-	vflip = BooleanField("Vertical Flip: ", default=False, validators=[Required("Required")])
+	vflip = BooleanField("Vertical Flip: ", default=False)

@@ -32,7 +32,7 @@ def main():
 
 	result = db.events.delete_many({})
 
-	#Create cars table
+	#Create reset password table
 	result = db.resetpassword.insert_one(
 				{
 					"username": "test"
@@ -40,6 +40,14 @@ def main():
 			)
 
 	result = db.resetpassword.delete_many({})
+
+	#Create camera settings table
+	result = db.settings.insert_one(
+				{
+					"username": "test"
+				}
+			)
+	result = db.settings.delete_many({})
 
 if __name__ == "__main__":
 	main()

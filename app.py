@@ -92,7 +92,6 @@ def login():
 				else:
 					flash("Incorrect username or password.")
 					return render_template("index.html", form=form)
-
 			else:
 				flash("Incorrect username or password.")
 				return render_template("index.html", form=form)
@@ -163,7 +162,6 @@ def showForgotPassword():
 @app.route("/forgotPassword", methods=['GET', 'POST'])
 def forgotPassword():
 	if (request.method == 'POST'):
-		#create token
 		form = ForgotPassword(request.form)
 		if (form.validate_on_submit()):
 			#get the email data that the user input
@@ -292,26 +290,68 @@ def videostream():
 def livestream():
 	return render_template("live-stream.html")
 
-@app.route("/recordvideos")
+@app.route("/showRecordvideos")
 @login_required
 def recordvideos():
 	return render_template("recordvideos.html")
 
-@app.route("/downloadvideos")
+@app.route("/showDownloadvideos")
 @login_required
 def downloadvideos():
 	return render_template("video.html")
 
-@app.route("/downloadimages")
+@app.route("/showSettings")
 @login_required
-def downloadimages():
-	return render_template("image.html")
-
-@app.route("/settings")
-@login_required
-def settings():
+def showSettings():
 	form = CamSettings()
 	return render_template("settings.html", form=form)
+
+@app.route("/settings", methods=['GET', 'POST'])
+@login_required
+def settings():
+	if (request.method == 'POST'):
+		form = CamSettings(request.form)
+		if (form.validate_on_submit()):
+			#grab 
+			_brightness = form.brightness.data
+			_resolution = form.resolution.data
+			_hflip = form.hflip.data
+			_vflip = form.vflip.data
+
+			#check for each field in form
+			if (_brightness >= 0 or _brightness <= 100):
+				if (_resolution == "320,240" or _resolution == "640,480" or _resolution == "1280,1024" or _resolution == "1920,1080"):
+					if (_hflip == True or _hflip == False):
+						if (_vflip == True or _vflip == False):
+							print "brightness"
+							print _brightness
+							print type(_brightness)
+							print "resolution"
+							print _resolution
+							print "hori flip"
+							print _hflip
+							print "vert flip"
+							print _vflip
+						else:
+							#Vertical flip error check
+							form.vflip.errors.append("Choice not valid")
+							return render_template("settings.html", form=form)
+					else:
+						#Horizontal flip error check
+						form.hflip.errors.append("Choice not valid")
+						return render_template("settings.html", form=form)
+				else:
+					#Resolution error check
+					form.resolution.errors.append("Choice not valid")
+					return render_template("settings.html", form=form)
+			else:
+				#Brightness error check
+				form.brightness.errors.append("Brightness must be between 0 and 100")
+				return render_template("settings.html", form=form)
+		else:
+			return render_template("settings.html", form=form)
+
+	return render_template("settings.html", form=CamSettings())
 
 @app.route("/showProfile")
 @login_required

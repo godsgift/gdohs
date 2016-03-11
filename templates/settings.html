@@ -7,7 +7,7 @@
 {% block content %}
 	<div class="col-xs-6">
 	    <h1 class="text-center text-white">Camera Settings</h1>
-	    <form id="settings" method="POST" action="">
+	    <form id="settings" method="POST" action="/settings">
 	        {{ form.hidden_tag() }}
 	        <div class="row">
 	            <div class="text-center text-white">
@@ -21,20 +21,6 @@
 	                {{ form.resolution.label(class="text-white") }}<wbr>
 	                {{ form.resolution() }}
 	                <div class="text-danger">{{ form.resolution.errors[0] }}<br></div>
-	            </div>
-	        </div>
-	        <div class="row">
-	            <div class="text-center">
-	                {{ form.video_time.label(class="text-white") }}<wbr>
-	                {{ form.video_time() }}
-	                <div class="text-danger">{{ form.video_time.errors[0] }}<br></div>
-	            </div>
-	        </div>
-	        <div class="row">
-	            <div class="text-center">
-	                {{ form.video_num.label(class="text-white") }}<wbr>
-	                {{ form.video_num() }}
-	                <div class="text-danger">{{ form.video_num.errors[0] }}<br></div>
 	            </div>
 	        </div>
 	        <div class="row">
@@ -71,18 +57,6 @@
 		<div class="row">
 		    <div class="text-center text-white">
 		    The default resolution for the camera is 640 x 480. This is the best resolution for using the camera when recording with the application. However you may still choose the other resolution but it may cause some problems. Please use caution when choosing a different resolution.
-		    </div>
-		</div>
-		<br>
-		<div class="row">
-		    <div class="text-center text-white">
-		    The video timing allows you to choose different hour times for the each video clips. In short the videos produced will have 5 hours of video clip should you choose 5 hours.
-		    </div>
-		</div>
-		<br>
-		<div class="row">
-		    <div class="text-center text-white">
-		    The video number option allows you to choose how many video's will be produced. The default number is 10 which means that at the end of the recording session, there will be 10 videos that will be outputted. This works in tandem with video timing and allows you to create your own combination of video files. For example, choosing video timing of 10 hours and video number of 10 will produce 10 videos that are each 10 hours long.
 		    </div>
 		</div>
 		<br>
