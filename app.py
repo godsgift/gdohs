@@ -17,7 +17,7 @@ from flask import *
 from flask.ext.pymongo import PyMongo
 from flask_mail import Mail, Message
 from flask.ext.bcrypt import Bcrypt
-from flask.ext.login import LoginManager, UserMixin, login_required, login_user, logout_user
+from flask.ext.login import LoginManager, UserMixin, login_required, login_user, logout_user, current_user
 
 
 ##########################################################################
@@ -312,7 +312,7 @@ def settings():
 	if (request.method == 'POST'):
 		form = CamSettings(request.form)
 		if (form.validate_on_submit()):
-			#grab 
+			#grab the data from the form
 			_brightness = form.brightness.data
 			_resolution = form.resolution.data
 			_hflip = form.hflip.data
@@ -323,15 +323,42 @@ def settings():
 				if (_resolution == "320,240" or _resolution == "640,480" or _resolution == "1280,1024" or _resolution == "1920,1080"):
 					if (_hflip == True or _hflip == False):
 						if (_vflip == True or _vflip == False):
-							print "brightness"
-							print _brightness
-							print type(_brightness)
-							print "resolution"
-							print _resolution
-							print "hori flip"
-							print _hflip
-							print "vert flip"
-							print _vflip
+							#Find the logged in user that is trying to access this
+							username =  current_user.username
+							find_user = mongo.db.user.find_one({"username": username})
+							#Get user_id from the logged in user
+							user_id = find_user["_id"]
+							check_user = mongo.db.settings.find_one({"user_id": user_id})
+							#If the user does not exist in the collection then add it
+							if (check_user is None):
+								#Add  user specified settings to the settings collection
+								result = mongo.db.settings.insert_one(
+									{
+										"user_id": user_id,
+										"brightness": _brightness,
+										"resolution": _resolution,
+										"hflip": _hflip,
+										"vflip": _vflip
+									}
+								)
+								flash("Settings Updated")
+							#If user does exist, update the fields to the new values
+							elif (check_user is not None):
+								mongo.db.settings.update(
+									{"user_id": user_id}, 
+									{"$set": 
+										{
+											"brightness": _brightness,
+											"resolution": _resolution,
+											"hflip": _hflip,
+											"vflip": _vflip
+										}
+									}
+								)
+								flash("Settings Updated")
+							else:
+								flash("Error, please try again.")
+								return render_template("settings.html", form=form)
 						else:
 							#Vertical flip error check
 							form.vflip.errors.append("Choice not valid")
