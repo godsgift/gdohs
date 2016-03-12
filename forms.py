@@ -1,6 +1,7 @@
 from flask_wtf import Form
-from wtforms import TextField, PasswordField, validators, IntegerField, BooleanField, SelectField
+from wtforms import TextField, PasswordField, validators, IntegerField, BooleanField, SelectField, SubmitField
 from wtforms.validators import Required, Length, Email, ValidationError, Regexp, EqualTo, NumberRange
+from wtforms.widgets import SubmitInput
 
 class SignUp(Form):
 	username = TextField("Username", validators=[Required("Please provide a username without any spaces"),
@@ -54,9 +55,14 @@ class CamSettings(Form):
 	brightness = IntegerField("Brightness", default=50, validators=[Required("Please choose a number between 0 and 100"),
 		NumberRange(min=0, max=100, message="Please choose a number between 0 and 100")])
 
-	resolution = SelectField("Video/Image Resolution: ", choices=[("320,240", "320 x 240"), ("640,480", "640 x 480"), 
-		("1280,1024", "1280 x 1024"), ("1920,1080", "1920 x 1080")], default="640,480", validators=[(Required("Required"))])
+	resolution = SelectField("Video/Image Resolution: ", choices=[("320x240", "320 x 240"), ("640x480", "640 x 480"), 
+		("1280x1024", "1280 x 1024"), ("1920x1080", "1920 x 1080")], default="640x480", validators=[(Required("Required"))])
 
 	hflip = BooleanField("Horizontal Flip: ", default=False)
 
 	vflip = BooleanField("Vertical Flip: ", default=False)
+
+class Recording(Form):
+	start = SubmitField("Start Streaming")
+
+	stop = SubmitField("Stop Streaming")

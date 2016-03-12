@@ -2,6 +2,7 @@ import time
 import picamera
 import picamera.array
 import numpy as np
+from picamera.exc import PiCameraMMALError, PiCameraAlreadyRecording, PiCameraError
 
 
 class MyMotionDetector(picamera.array.PiMotionAnalysis):
@@ -16,15 +17,19 @@ class MyMotionDetector(picamera.array.PiMotionAnalysis):
             print "taking picture"
             # camera.capture("videos/testing.jpg", use_video_port=True)
             # time.sleep(1)
-
-with picamera.PiCamera() as camera:
-    camera.resolution = (640, 480)
-    camera.framerate = 30
-    time.sleep(2)
-    for filename in camera.record_sequence(
-        ('clip%02d.h264' % i for i in range(2)), motion_output=MyMotionDetector(camera)):
-        camera.wait_recording(3600)
-        camera.stop_recording
+try:
+    with picamera.PiCamera() as camera:
+        test = camera._check_recording_stopped
+        print test
+except (PiCameraMMALError, PiCameraError, PiCameraAlreadyRecording):
+    print "ERROR OCCURRED"
+    # camera.resolution = (640, 480)
+    # camera.framerate = 30
+    # time.sleep(2)
+    # for filename in camera.record_sequence(
+    #     ('clip%02d.h264' % i for i in range(2)), motion_output=MyMotionDetector(camera)):
+    #     camera.wait_recording(3600)
+    #     camera.stop_recording
     # camera.start_recording(
     #     '/dev/null', format='h264',
     #     motion_output=MyMotionDetector(camera)

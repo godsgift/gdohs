@@ -8,7 +8,9 @@ import re
 import picamera
 import io
 import time
+from threading import Lock
 from rpi_camera import Camera
+from picamera.exc import PiCameraMMALError, PiCameraAlreadyRecording, PiCameraError
 from forms import *
 from config import *
 from itsdangerous import TimedJSONWebSignatureSerializer as Serializer, BadSignature, SignatureExpired
@@ -49,13 +51,15 @@ mail = Mail(app)
 
 rand_num = randint(0,200000)
 
+camera = None
+cameralock = Lock()
 
 #Running db:
 #mongod --dbpath data
 
 ##########################################################################
 #
-#								LOGGED OUT
+#							LOGGED OUT FUNCTIONS
 #
 ##########################################################################
 
@@ -275,9 +279,14 @@ def unauthorized_handler():
 
 ##########################################################################
 #
-#							   LOGGED IN
+#							LOGGED IN FUNCTIONS
 #
 ##########################################################################
+
+@app.route("/livestream")
+@login_required
+def livestream():
+	return render_template("live-stream.html")
 
 @app.route("/videostream")
 @login_required
@@ -285,15 +294,62 @@ def videostream():
 	return Response(generate_frames(Camera()),
                     mimetype='multipart/x-mixed-replace; boundary=frame')
 
-@app.route("/livestream")
-@login_required
-def livestream():
-	return render_template("live-stream.html")
-
 @app.route("/showRecordvideos")
 @login_required
-def recordvideos():
-	return render_template("recordvideos.html")
+def showRecordvideos():
+	form = Recording()
+	return render_template("recordvideos.html", form=form)
+
+@app.route("/startrecord", methods=['GET', 'POST'])
+@login_required
+def startrecord():
+	form = Recording()
+	if (request.method == 'POST'):
+		form = Recording(request.form)
+		#grab user input
+		start = form.start.data
+		stop = form.stop.data
+		
+		#User wants to start streaming
+		if (start == True and stop == False):
+			print "START RECORDING"
+			try:
+				global camera
+				with cameralock:
+					#get user that is currently logged in
+
+					#get camera settings set by that user from the database
+
+					#Start camera
+					camera = picamera.PiCamera()
+					camera.resolution=(640,480)
+					time.sleep(2)
+					camera.start_recording("test.h264")
+			except (PiCameraMMALError, PiCameraError, PiCameraAlreadyRecording):
+				flash("Camera already in use. Please ensure that there is no one in the livestream page or stop recording")
+	return render_template("recordvideos.html", form=form)
+
+@app.route("/stoprecord", methods=['GET', 'POST'])
+@login_required
+def stoprecord():
+	form = Recording()
+	if (request.method == 'POST'):
+		form = Recording(request.form)
+		#grab user input
+		start = form.start.data
+		stop = form.stop.data
+		print "STOP RECORDING"
+		if (camera is None):
+			flash("Camera is not recording. Please start recording before stopping it.")
+		else:
+			global camera
+			with cameralock:
+				camera.stop_recording()
+				camera.close()
+				camera = None
+
+	return render_template("recordvideos.html", form=form)
+
 
 @app.route("/showDownloadvideos")
 @login_required
@@ -304,7 +360,19 @@ def downloadvideos():
 @login_required
 def showSettings():
 	form = CamSettings()
-	return render_template("settings.html", form=form)
+	#Find current user
+	username = current_user.username
+	find_user = mongo.db.user.find_one({"username": username})
+	user_id = find_user["_id"]
+	#check if user had set a settings previously
+	check_user = mongo.db.settings.find_one({"user_id": user_id})
+	#Show the user the current settings to the HTML
+	brightness = check_user["brightness"]
+	resolution = check_user["resolution"]
+	hflip = check_user["hflip"]
+	vflip = check_user["vflip"]
+	return render_template("settings.html", form=form, 
+		brightness=brightness, resolution=resolution, hflip=hflip, vflip=vflip)
 
 @app.route("/settings", methods=['GET', 'POST'])
 @login_required
@@ -317,10 +385,10 @@ def settings():
 			_resolution = form.resolution.data
 			_hflip = form.hflip.data
 			_vflip = form.vflip.data
-
 			#check for each field in form
 			if (_brightness >= 0 or _brightness <= 100):
-				if (_resolution == "320,240" or _resolution == "640,480" or _resolution == "1280,1024" or _resolution == "1920,1080"):
+				if (_resolution == "320x240" or _resolution == "640x480" or _resolution == "1280x1024" 
+					or _resolution == "1920x1080"):
 					if (_hflip == True or _hflip == False):
 						if (_vflip == True or _vflip == False):
 							#Find the logged in user that is trying to access this
@@ -376,9 +444,11 @@ def settings():
 				form.brightness.errors.append("Brightness must be between 0 and 100")
 				return render_template("settings.html", form=form)
 		else:
-			return render_template("settings.html", form=form)
-
-	return render_template("settings.html", form=CamSettings())
+			#if form fails to validate
+			return redirect(url_for("showSettings"))
+	else:
+		return redirect(url_for("showSettings"))
+	return redirect(url_for("showSettings"))
 
 @app.route("/showProfile")
 @login_required
@@ -439,10 +509,10 @@ def load_user(username):
 	return User(_id, _username, _password)
 
 
-def create_savefile(filetype):
+def create_savefile():
     dateTime = time.strftime("%Y-%m-%d,%I%M")
     location = "videos/"
-    filename = location + dateTime  + "." + filetype
+    filename = location + dateTime  + ".h264"
     return filename
 	    
 def generate_frames(camera):
