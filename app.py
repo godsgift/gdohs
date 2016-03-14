@@ -327,7 +327,7 @@ def startrecord():
 						camera.resolution = (640,480)
 						time.sleep(2)
 						#create filename
-						filename = create_savefile()
+						filename = create_savefile("video")
 						camera.start_recording(filename, motion_output=MyMotionDetector(camera))
 						print filename
 						flash("Started recording on " + time.strftime("%Y-%m-%d %I:%M:%S") + " with default settings.")
@@ -349,7 +349,7 @@ def startrecord():
 						camera.vflip = vflip
 						time.sleep(2)
 						#create filename
-						filename = create_savefile()
+						filename = create_savefile("video")
 						camera.start_recording(filename, motion_output=MyMotionDetector(camera))
 						flash("Started recording on " + time.strftime("%Y-%m-%d %I:%M:%S") + ".")
 						return render_template("recordvideos.html", form=form)
@@ -537,15 +537,21 @@ class MyMotionDetector(picamera.array.PiMotionAnalysis):
         # than 60, then say we've detected motion
         if (a > 60).sum() > 50:
             print "taking picture"
-            # camera.capture("videos/testing.jpg", use_video_port=True)
-            # time.sleep(1)
+            #Take 5 pictures with different names
+            #time sleep
+            #email all 5 pictures
+            #time sleep 5 seconds?
+            #send to lpr server
+            #time sleep 5 seconds?
+            filename = create_savefile("image")
+            camera.capture(filename, use_video_port=True)
+            time.sleep(2)
 
 ##########################################################################
 #
 #							HELPER FUNCTIONS
 #
 ##########################################################################
-#Adds the user into the session
 @login_manager.user_loader
 def load_user(username):
 	user_id = mongo.db.user.find_one({"username": username})
@@ -558,11 +564,17 @@ def load_user(username):
 	return User(_id, _username, _password)
 
 
-def create_savefile():
-    dateTime = time.strftime("%Y-%m-%d,%I%M%S")
-    location = "videos/"
-    filename = location + dateTime  + ".h264"
-    return filename
+def create_savefile(save_location):
+	if (save_location == "video"):
+	    dateTime = time.strftime("%Y-%m-%d,%I%M%S")
+	    location = "videos/"
+	    filename = location + dateTime  + ".h264"
+	    return filename
+	elif (save_location == "image"):
+		dateTime = time.strftime("%Y-%m-%d,%I%M%S")
+		location = "motion-images/"
+		filename = location + dateTime  + ".jpeg"
+		return filename
 	    
 def generate_frames(camera):
     #Video streaming generator function.
