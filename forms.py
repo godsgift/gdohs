@@ -63,6 +63,6 @@ class CamSettings(Form):
 	vflip = BooleanField("Vertical Flip: ", default=False)
 
 class Recording(Form):
-	start = SubmitField("Start Streaming")
+	start = SubmitField("Start Recording")
 
-	stop = SubmitField("Stop Streaming")
+	stop = SubmitField("Stop Recording")

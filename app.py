@@ -8,6 +8,8 @@ import re
 import picamera
 import io
 import time
+import picamera.array
+import numpy as np
 from threading import Lock
 from rpi_camera import Camera
 from picamera.exc import PiCameraMMALError, PiCameraAlreadyRecording, PiCameraError
@@ -304,50 +306,82 @@ def showRecordvideos():
 @login_required
 def startrecord():
 	form = Recording()
+	global camera
 	if (request.method == 'POST'):
 		form = Recording(request.form)
 		#grab user input
 		start = form.start.data
 		stop = form.stop.data
-		
-		#User wants to start streaming
+		#User wants to start recording
 		if (start == True and stop == False):
-			print "START RECORDING"
 			try:
-				global camera
 				with cameralock:
-					#get user that is currently logged in
-
+					#get user id of the logged in user
+					username = current_user.username
+					user_id = username_to_userid(username)
 					#get camera settings set by that user from the database
-
-					#Start camera
-					camera = picamera.PiCamera()
-					camera.resolution=(640,480)
-					time.sleep(2)
-					camera.start_recording("test.h264")
+					check_user = mongo.db.settings.find_one({"user_id": user_id})
+					if (check_user is None):
+						#Start camera with default settings
+						camera = picamera.PiCamera()
+						camera.resolution = (640,480)
+						time.sleep(2)
+						#create filename
+						filename = create_savefile()
+						camera.start_recording(filename, motion_output=MyMotionDetector(camera))
+						print filename
+						flash("Started recording on " + time.strftime("%Y-%m-%d %I:%M:%S") + " with default settings.")
+					else:
+						#Grab user settings
+						brightness = check_user["brightness"]
+						hflip = check_user["hflip"]
+						vflip = check_user["vflip"]
+						unicode_resolution = check_user["resolution"]
+						#Change from unicode to int and get width and height from string
+						int_resolution = string_split_res(unicode_resolution)
+						width = int_resolution[0]
+						height = int_resolution[1]
+						#Use the settings set by the user
+						camera = picamera.PiCamera()
+						camera.resolution = (width,height)
+						camera.brightness = brightness
+						camera.hflip = hflip
+						camera.vflip = vflip
+						time.sleep(2)
+						#create filename
+						filename = create_savefile()
+						camera.start_recording(filename, motion_output=MyMotionDetector(camera))
+						flash("Started recording on " + time.strftime("%Y-%m-%d %I:%M:%S") + ".")
+						return render_template("recordvideos.html", form=form)
 			except (PiCameraMMALError, PiCameraError, PiCameraAlreadyRecording):
-				flash("Camera already in use. Please ensure that there is no one in the livestream page or stop recording")
+				flash("Camera already in use. Please ensure that there is no one in the livestream page or stop the recording")
+		else:
+			flash("Error, please refresh the page and try again")
+			return render_template("recordvideos.html", form=form)
 	return render_template("recordvideos.html", form=form)
 
 @app.route("/stoprecord", methods=['GET', 'POST'])
 @login_required
 def stoprecord():
+	global camera
 	form = Recording()
 	if (request.method == 'POST'):
 		form = Recording(request.form)
 		#grab user input
 		start = form.start.data
 		stop = form.stop.data
-		print "STOP RECORDING"
-		if (camera is None):
-			flash("Camera is not recording. Please start recording before stopping it.")
+		if (stop == True and start == False):
+			if (camera is None):
+				flash("Camera is not recording. Please start recording before stopping it.")
+			else:
+				with cameralock:
+					camera.stop_recording()
+					camera.close()
+					flash("Stopped Recording on " + time.strftime("%Y-%m-%d %I:%M:%S") + ".")
+					camera = None
 		else:
-			global camera
-			with cameralock:
-				camera.stop_recording()
-				camera.close()
-				camera = None
-
+			flash ("Error, please try again")
+			return render_template("recordvideos.html", form=form)
 	return render_template("recordvideos.html", form=form)
 
 
@@ -362,17 +396,20 @@ def showSettings():
 	form = CamSettings()
 	#Find current user
 	username = current_user.username
-	find_user = mongo.db.user.find_one({"username": username})
-	user_id = find_user["_id"]
+	user_id = username_to_userid(username)
 	#check if user had set a settings previously
 	check_user = mongo.db.settings.find_one({"user_id": user_id})
 	#Show the user the current settings to the HTML
-	brightness = check_user["brightness"]
-	resolution = check_user["resolution"]
-	hflip = check_user["hflip"]
-	vflip = check_user["vflip"]
-	return render_template("settings.html", form=form, 
-		brightness=brightness, resolution=resolution, hflip=hflip, vflip=vflip)
+	if (check_user):
+		brightness = check_user["brightness"]
+		resolution = check_user["resolution"]
+		hflip = check_user["hflip"]
+		vflip = check_user["vflip"]
+		return render_template("settings.html", form=form, 
+			brightness=brightness, resolution=resolution, hflip=hflip, vflip=vflip)
+	else:
+		return render_template("settings.html", form=form)
+	return render_template("settings.html", form=form)
 
 @app.route("/settings", methods=['GET', 'POST'])
 @login_required
@@ -386,16 +423,15 @@ def settings():
 			_hflip = form.hflip.data
 			_vflip = form.vflip.data
 			#check for each field in form
-			if (_brightness >= 0 or _brightness <= 100):
+			if (_brightness >= 0 and _brightness <= 100):
 				if (_resolution == "320x240" or _resolution == "640x480" or _resolution == "1280x1024" 
 					or _resolution == "1920x1080"):
 					if (_hflip == True or _hflip == False):
 						if (_vflip == True or _vflip == False):
-							#Find the logged in user that is trying to access this
+							#Find the current logged in user
 							username =  current_user.username
-							find_user = mongo.db.user.find_one({"username": username})
-							#Get user_id from the logged in user
-							user_id = find_user["_id"]
+							#Get the user id based off of the current logged in user
+							user_id = username_to_userid(username)
 							check_user = mongo.db.settings.find_one({"user_id": user_id})
 							#If the user does not exist in the collection then add it
 							if (check_user is None):
@@ -424,9 +460,9 @@ def settings():
 									}
 								)
 								flash("Settings Updated")
-							else:
-								flash("Error, please try again.")
-								return render_template("settings.html", form=form)
+							# else:
+							# 	flash("Error, please try again.")
+							# 	return render_template("settings.html", form=form)
 						else:
 							#Vertical flip error check
 							form.vflip.errors.append("Choice not valid")
@@ -445,7 +481,7 @@ def settings():
 				return render_template("settings.html", form=form)
 		else:
 			#if form fails to validate
-			return redirect(url_for("showSettings"))
+			return render_template("settings.html", form=form)
 	else:
 		return redirect(url_for("showSettings"))
 	return redirect(url_for("showSettings"))
@@ -491,6 +527,19 @@ class User():
 	def validate_login(pw_hash, password):
 		return bcrypt.check_password_hash(pw_hash, password)
 
+class MyMotionDetector(picamera.array.PiMotionAnalysis):
+    def analyse(self, a):
+        a = np.sqrt(
+            np.square(a['x'].astype(np.float)) +
+            np.square(a['y'].astype(np.float))
+            ).clip(0, 255).astype(np.uint8)
+        # If there're more than 10 vectors with a magnitude greater
+        # than 60, then say we've detected motion
+        if (a > 60).sum() > 50:
+            print "taking picture"
+            # camera.capture("videos/testing.jpg", use_video_port=True)
+            # time.sleep(1)
+
 ##########################################################################
 #
 #							HELPER FUNCTIONS
@@ -510,13 +559,13 @@ def load_user(username):
 
 
 def create_savefile():
-    dateTime = time.strftime("%Y-%m-%d,%I%M")
+    dateTime = time.strftime("%Y-%m-%d,%I%M%S")
     location = "videos/"
     filename = location + dateTime  + ".h264"
     return filename
 	    
 def generate_frames(camera):
-    """Video streaming generator function."""
+    #Video streaming generator function.
     while True:
         frame = camera.get_frame()
         yield (b'--frame\r\n'
@@ -560,6 +609,18 @@ def reset_pass_email(remail, firstname, lastname, link):
 
 	mail.send(msg)
 	return
+
+def username_to_userid(username):
+	find_user = mongo.db.user.find_one({"username": username})
+	user_id = find_user["_id"]
+	return user_id
+
+def string_split_res(resolution):
+	changed_res = str(resolution)
+	split = changed_res.split("x")
+	width = int(split[0])
+	height = int(split[1])
+	return width, height
 
 if __name__ == "__main__":
 	app.run(debug=True, host='0.0.0.0', threaded=True)
