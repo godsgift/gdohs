@@ -6,13 +6,12 @@
 
 import re
 import picamera
-import io
 import time
 import picamera.array
 import numpy as np
-from threading import Lock
+from threading import Lock, Thread
 from rpi_camera import Camera
-from picamera.exc import PiCameraMMALError, PiCameraAlreadyRecording, PiCameraError
+from picamera.exc import PiCameraMMALError, PiCameraAlreadyRecording, PiCameraError, PiCameraNotRecording
 from forms import *
 from config import *
 from itsdangerous import TimedJSONWebSignatureSerializer as Serializer, BadSignature, SignatureExpired
@@ -55,6 +54,8 @@ rand_num = randint(0,200000)
 
 camera = None
 cameralock = Lock()
+stop_record = None
+user_email = None
 
 #Running db:
 #mongod --dbpath data
@@ -302,89 +303,6 @@ def showRecordvideos():
 	form = Recording()
 	return render_template("recordvideos.html", form=form)
 
-@app.route("/startrecord", methods=['GET', 'POST'])
-@login_required
-def startrecord():
-	form = Recording()
-	global camera
-	if (request.method == 'POST'):
-		form = Recording(request.form)
-		#grab user input
-		start = form.start.data
-		stop = form.stop.data
-		#User wants to start recording
-		if (start == True and stop == False):
-			try:
-				with cameralock:
-					#get user id of the logged in user
-					username = current_user.username
-					user_id = username_to_userid(username)
-					#get camera settings set by that user from the database
-					check_user = mongo.db.settings.find_one({"user_id": user_id})
-					if (check_user is None):
-						#Start camera with default settings
-						camera = picamera.PiCamera()
-						camera.resolution = (640,480)
-						time.sleep(2)
-						#create filename
-						filename = create_savefile("video")
-						camera.start_recording(filename, motion_output=MyMotionDetector(camera))
-						print filename
-						flash("Started recording on " + time.strftime("%Y-%m-%d %I:%M:%S") + " with default settings.")
-					else:
-						#Grab user settings
-						brightness = check_user["brightness"]
-						hflip = check_user["hflip"]
-						vflip = check_user["vflip"]
-						unicode_resolution = check_user["resolution"]
-						#Change from unicode to int and get width and height from string
-						int_resolution = string_split_res(unicode_resolution)
-						width = int_resolution[0]
-						height = int_resolution[1]
-						#Use the settings set by the user
-						camera = picamera.PiCamera()
-						camera.resolution = (width,height)
-						camera.brightness = brightness
-						camera.hflip = hflip
-						camera.vflip = vflip
-						time.sleep(2)
-						#create filename
-						filename = create_savefile("video")
-						camera.start_recording(filename, motion_output=MyMotionDetector(camera))
-						flash("Started recording on " + time.strftime("%Y-%m-%d %I:%M:%S") + ".")
-						return render_template("recordvideos.html", form=form)
-			except (PiCameraMMALError, PiCameraError, PiCameraAlreadyRecording):
-				flash("Camera already in use. Please ensure that there is no one in the livestream page or stop the recording")
-		else:
-			flash("Error, please refresh the page and try again")
-			return render_template("recordvideos.html", form=form)
-	return render_template("recordvideos.html", form=form)
-
-@app.route("/stoprecord", methods=['GET', 'POST'])
-@login_required
-def stoprecord():
-	global camera
-	form = Recording()
-	if (request.method == 'POST'):
-		form = Recording(request.form)
-		#grab user input
-		start = form.start.data
-		stop = form.stop.data
-		if (stop == True and start == False):
-			if (camera is None):
-				flash("Camera is not recording. Please start recording before stopping it.")
-			else:
-				with cameralock:
-					camera.stop_recording()
-					camera.close()
-					flash("Stopped Recording on " + time.strftime("%Y-%m-%d %I:%M:%S") + ".")
-					camera = None
-		else:
-			flash ("Error, please try again")
-			return render_template("recordvideos.html", form=form)
-	return render_template("recordvideos.html", form=form)
-
-
 @app.route("/showDownloadvideos")
 @login_required
 def downloadvideos():
@@ -492,6 +410,102 @@ def showProfile():
 	form = ChangePassword()
 	return render_template("profile.html", form=form)
 
+@app.route("/startrecord", methods=['GET', 'POST'])
+@login_required
+def startrecord():
+	form = Recording()
+	global camera
+	global user_email
+	if (request.method == 'POST'):
+		form = Recording(request.form)
+		#grab user input
+		start = form.start.data
+		stop = form.stop.data
+		#User wants to start recording
+		if (start == True and stop == False):
+			try:
+				with cameralock:
+					#get user id of the logged in user
+					username = current_user.username
+					find_user = mongo.db.user.find_one({"username": username})
+					user_id = find_user["_id"]
+					#Get user email to send the images when motion is detected
+					user_email = find_user["email"]
+					#get camera settings set by that user from the database
+					check_user = mongo.db.settings.find_one({"user_id": user_id})
+					if (check_user is None):
+						#Start camera with default settings
+						camera = picamera.PiCamera()
+						camera.resolution = (640,480)
+						time.sleep(2)
+						#create filename
+						filename = create_savefile("video")
+						camera.start_recording(filename, motion_output=MyMotionDetector(camera))
+						flash("Started recording on " + time.strftime("%Y-%m-%d %I:%M:%S") + " with default settings.")
+					else:
+						#Grab user settings
+						brightness = check_user["brightness"]
+						hflip = check_user["hflip"]
+						vflip = check_user["vflip"]
+						unicode_resolution = check_user["resolution"]
+						#Change from unicode to int and get width and height from string
+						int_resolution = string_split_res(unicode_resolution)
+						width = int_resolution[0]
+						height = int_resolution[1]
+						#Use the settings set by the user
+						camera = picamera.PiCamera()
+						camera.resolution = (width,height)
+						camera.brightness = brightness
+						camera.hflip = hflip
+						camera.vflip = vflip
+						time.sleep(2)
+						#create filename
+						filename = create_savefile("video")
+						camera.start_recording(filename, motion_output=MyMotionDetector(camera))
+						flash("Started recording on " + time.strftime("%Y-%m-%d %I:%M:%S") + ".")
+						return render_template("recordvideos.html", form=form)
+			except (PiCameraMMALError, PiCameraError, PiCameraAlreadyRecording):
+				flash("Camera already in use. Please ensure that there is no one in the livestream page or stop the recording")
+		else:
+			flash("Error, please refresh the page and try again")
+			return render_template("recordvideos.html", form=form)
+	return render_template("recordvideos.html", form=form)
+
+@app.route("/stoprecord", methods=['GET', 'POST'])
+@login_required
+def stoprecord():
+	global camera
+	global stop_record
+	global user_email
+	form = Recording()
+	if (request.method == 'POST'):
+		form = Recording(request.form)
+		#grab user input
+		start = form.start.data
+		stop = form.stop.data
+		if (stop == True and start == False):
+			#Set stop recording to true so that 
+			#the motion detector can stop taking pictures
+			stop_record = True
+			if (camera is None):
+				flash("Camera is not recording. Please start recording before stopping it.")
+			else:
+				try:
+					with cameralock:
+						camera.wait_recording(13)
+						camera.stop_recording()
+						camera.close()
+						flash("Stopped Recording on " + time.strftime("%Y-%m-%d %I:%M:%S") + ".")
+						#set to none so that it can be used again later on
+						camera = None
+						user_email = None
+				except (PiCameraMMALError, PiCameraError, PiCameraAlreadyRecording, PiCameraNotRecording):
+					print "ERROR"
+		else:
+			flash ("Error, please try again")
+			return render_template("recordvideos.html", form=form)
+	return render_template("recordvideos.html", form=form)
+
 @app.route("/logout")
 @login_required
 def logout():
@@ -528,24 +542,66 @@ class User():
 		return bcrypt.check_password_hash(pw_hash, password)
 
 class MyMotionDetector(picamera.array.PiMotionAnalysis):
-    def analyse(self, a):
-        a = np.sqrt(
-            np.square(a['x'].astype(np.float)) +
-            np.square(a['y'].astype(np.float))
-            ).clip(0, 255).astype(np.uint8)
-        # If there're more than 10 vectors with a magnitude greater
-        # than 60, then say we've detected motion
-        if (a > 60).sum() > 50:
-            print "taking picture"
-            #Take 5 pictures with different names
-            #time sleep
-            #email all 5 pictures
-            #time sleep 5 seconds?
-            #send to lpr server
-            #time sleep 5 seconds?
-            filename = create_savefile("image")
-            camera.capture(filename, use_video_port=True)
-            time.sleep(2)
+	def analyse(self, a):
+		global stop_record
+		global user_email
+		a = np.sqrt(
+		    np.square(a['x'].astype(np.float)) +
+		    np.square(a['y'].astype(np.float))
+		    ).clip(0, 255).astype(np.uint8)
+	    # If there're more than 10 vectors with a magnitude greater
+	    # than 60, motion has been detected
+		if (a > 60).sum() > 50:
+			#if the stop recording button has not been clicked yet,
+			#start taking pictures with the camera and send to
+			#the license plate reading server and email to client
+			if (stop_record is None):
+			    filenames=[]
+			    #Take 5 pictures with different filenames (5 seconds)
+			    for i in range(5):
+			    	filename = create_savefile("image")
+			    	#Add the filenames to the list
+			    	filenames.append(filename)
+			    	camera.capture(filename, use_video_port=True)
+			    	time.sleep(1)
+
+			    #Run this code then back here
+			    with app.app_context():
+				    self.email_image(user_email, filenames[0],filenames[1],filenames[2],
+				    	filenames[3],filenames[4])
+			    time.sleep(1)
+			    print "SENT EMAIL"
+
+			    #Send to lpr server
+
+			elif (stop_record is True):
+				#sleep must be the same time as wait_recording in stoprecord() function
+				time.sleep(13)
+				stop_record = None
+
+	def email_image(self, remail, filename1, filename2, filename3, filename4, filename5):
+		subject = "Motion Detected"
+		body = "Attached are 5 images that were taken when your camera had detected a motion"
+		
+		msg = Message(subject=subject, body=body,
+			sender=Mail_User,
+			recipients=[remail])
+
+		#Attach the 5 images to the email
+		with app.open_resource(filename1) as fp:
+		    msg.attach(filename1, "image/jpeg", fp.read())
+		with app.open_resource(filename2) as fp:
+		    msg.attach(filename2, "image/jpeg", fp.read())
+		with app.open_resource(filename3) as fp:
+		    msg.attach(filename3, "image/jpeg", fp.read())
+		with app.open_resource(filename4) as fp:
+		    msg.attach(filename4, "image/jpeg", fp.read())
+		with app.open_resource(filename5) as fp:
+		    msg.attach(filename5, "image/jpeg", fp.read())
+
+		mail.send(msg)
+		time.sleep(2)
+		return
 
 ##########################################################################
 #
@@ -563,8 +619,9 @@ def load_user(username):
 		_password = user_id["password"]
 	return User(_id, _username, _password)
 
-
 def create_savefile(save_location):
+	#if the requested filename is for a video, create the filename for video
+	#else if its image, create the filename for image
 	if (save_location == "video"):
 	    dateTime = time.strftime("%Y-%m-%d,%I%M%S")
 	    location = "videos/"
@@ -573,11 +630,11 @@ def create_savefile(save_location):
 	elif (save_location == "image"):
 		dateTime = time.strftime("%Y-%m-%d,%I%M%S")
 		location = "motion-images/"
-		filename = location + dateTime  + ".jpeg"
-		return filename
+		filename = dateTime  + ".jpeg"
+		return location + filename
 	    
 def generate_frames(camera):
-    #Video streaming generator function.
+    #Video streaming generator function
     while True:
         frame = camera.get_frame()
         yield (b'--frame\r\n'
@@ -591,15 +648,16 @@ def checkWhitespace(word):
 	#If there is whitespace then set checker to false
 	if (ws):
 		checker = False
-
 	return checker
 
 def get_token(self, expiration=1800):
+	#Create token
 	s = Serializer(app.secret_key, expiration)
 	serializedToken = s.dumps(self)
 	return serializedToken
 
 def verify_token(token):
+	#Verifies token
 	s = Serializer(app.secret_key)
 	try:
 		data = s.loads(token)
@@ -610,6 +668,7 @@ def verify_token(token):
 	return data
 
 def reset_pass_email(remail, firstname, lastname, link):
+	#Send reset password email
 	msg = Message("Hello " + firstname + " " + lastname,
 		sender=Mail_User,
 		recipients=[remail])
@@ -623,11 +682,13 @@ def reset_pass_email(remail, firstname, lastname, link):
 	return
 
 def username_to_userid(username):
+	#Get the userid of the user from their username
 	find_user = mongo.db.user.find_one({"username": username})
 	user_id = find_user["_id"]
 	return user_id
 
 def string_split_res(resolution):
+	#get the width and height of the resolution
 	changed_res = str(resolution)
 	split = changed_res.split("x")
 	width = int(split[0])
