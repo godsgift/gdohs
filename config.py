@@ -7,3 +7,7 @@ Mail_Pass = "uest1onQ?"
 
 #DATABASE CONFIG
 DB_Name = "gdohs"
+
+#Servers
+RPI_Server = "192.168.0.31:5000"
+LPR_Server = "192.168.0.32:5000"
