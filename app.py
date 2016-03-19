@@ -78,22 +78,32 @@ def index():
 def nig():
 	pw_hash = bcrypt.generate_password_hash("525FFF")
 	#Add the new user into the database
-	result = mongo.db.license.insert_one(
-		{
-			"username": "testing",
-			"license_plate": "525FFF",
-			"license": pw_hash
-		}
-	)
+	# result = mongo.db.license.insert_one(
+	# 	{
+	# 		"username": "testing",
+	# 		"license_plate": "525FFF",
+	# 		"license": [pw_hash,"thing","lol"]
+	# 	}
+	# )
+	user = mongo.db.license.find_one({"username":"testing"})
+	print user
+	current_license=user["license"]
+	print current_license
+	test = "aha"
+	current_license.append(test)
+	mongo.db.license.update_one({"username": "testing"}, {"$set": {'license': current_license}})
+
+
+	return "OK"
 
 @app.route("/nignog")
 def nigg():
 	user = mongo.db.license.find_one({"username": "testing"})
 	dblicense = user['license']
-	print dblicense
-	test = bcrypt.generate_password_hash("525FFF")
-	testing = bcrypt.check_password_hash(dblicense,"525FFF")
-	print testing
+	print dblicense[0]
+	# test = bcrypt.generate_password_hash("525FFF")
+	# testing = bcrypt.check_password_hash(dblicense,"525FFF")
+	# print testing
 	return "OK"
 
 
@@ -433,8 +443,47 @@ def settings():
 @app.route("/showProfile")
 @login_required
 def showProfile():
+	username = current_user.username
+	find_user = mongo.db.user.find_one({"username": username})
+	user_fname = find_user["firstname"]
+	user_lname = find_user["lastname"]
+	user_email = find_user["email"]
+	form = LicensePlate()
+	#Add license plate
+	#1 user = 1 license plat
+	#they would need to update it everytime if they wish to change lp
+	return render_template("profile.html", form=form, fname=user_fname, lname=user_lname, email=user_email)
+
+@app.route("/addLicense", methods=['GET', 'POST'])
+def addLicense():
+	username = current_user.username
+	find_user = mongo.db.user.find_one({"username": username})
+	user_fname = find_user["firstname"]
+	user_lname = find_user["lastname"]
+	user_email = find_user["email"]
+
+	if (request.method == "POST"):
+		form=LicensePlate(request.form)
+		if (form.validate_on_submit()):
+			license = form.license.data
+			print license
+			#Add/update license plate
+		else:
+			return render_template("profile.html", form=form, fname=user_fname, lname=user_lname, email=user_email)
+	else:
+		return redirect(url_for("showProfile"))
+	return redirect(url_for("showProfile"))
+
+
+@app.route("/showChangePassword")
+def showChangePassword():
 	form = ChangePassword()
-	return render_template("profile.html", form=form)
+	return render_template("changepassword.html", form=form)
+
+@app.route("/changePassword")
+def changePassword():
+	return render_template("changepassword.html", form=form)
+
 
 @app.route("/startrecord", methods=['GET', 'POST'])
 @login_required
@@ -578,6 +627,7 @@ class MyMotionDetector(picamera.array.PiMotionAnalysis):
 	    # If there're more than 10 vectors with a magnitude greater
 	    # than 60, motion has been detected
 		if ((a > 60).sum() > 50):
+			wait = True
 			print "MOTION"
 			#if the stop recording button has not been clicked yet,
 			#start taking pictures with the camera and send to

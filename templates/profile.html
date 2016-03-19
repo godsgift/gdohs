@@ -6,29 +6,32 @@
 {% endblock %}
 
 {% block content %}
-<div class="col-xs-4 col-xs-offset-4">
-    <h1 class="text-center text-white">Change Password</h1>
-    <form id="signUp" method="POST" action="/signUp">
+<div class="col-xs-4 col-xs-offset-4 text-white">
+    <h3>
+    First Name:{{ fname }}<br><br>
+    Last Name:{{ lname }}<br><br>
+    Email:{{ email }}<br><br>
+    </h3>
+    <div>Click
+    <a href="/showChangePassword">here</a>
+    to change your password.
+    </div>
+    <br><br>
+    <form id="addLicense" method="POST" action="addLicense">
         {{ form.hidden_tag() }}
         <div class="row">
             <div class="text-center text-white">
-                {{ form.current_password.label() }}<br> 
-                {{ form.current_password(placeholder="Current Password", class="form-control", autofocus=true) }}
-                <div class="text-danger">{{ form.current_password.errors[0] }}<br></div>
+                {{ form.license.label() }}<br> 
+                {{ form.license(placeholder="License Plate", class="form-control", autofocus=true) }}
+                <div class="text-danger">{{ form.license.errors[0] }}<br></div>
             </div>
         </div>
         <div class="row">
-            <div class="text-center text-white">
-                {{ form.password.label() }}<br> 
-                {{ form.password(placeholder="New Password", class="form-control", autofocus=true) }}
-                <div class="text-danger">{{ form.password.errors[0] }}<br></div>
+            <div class="text-center">
+                <br>
+                <input type="submit" id="btnAddLicense" class="btn-success btn-lg" value="Add License Plate">
             </div>
         </div>
-        <div class="row">
-            <div class="text-center text-white">
-                {{ form.confirm_password.label() }}<br> 
-                {{ form.confirm_password(placeholder="Confirm Password", class="form-control", autofocus=true) }}
-                <div class="text-danger">{{ form.confirm_password.errors[0] }}<br></div>
-            </div>
-        </div>
+    </form>
+</div>
 {% endblock %}

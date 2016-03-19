@@ -66,3 +66,7 @@ class Recording(Form):
 	start = SubmitField("Start Recording")
 
 	stop = SubmitField("Stop Recording")
+
+class LicensePlate(Form):
+	license = TextField("License Plate", validators=[Required("Please provide a license plate without any spaces"),
+		Length(min=4, max=10), Regexp(r'^[\w.@+-]+$', message="Please provide a license plate without any spaces")])
