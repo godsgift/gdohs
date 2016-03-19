@@ -7,11 +7,13 @@
 import re
 import picamera
 import time
+import os
 import picamera.array
+import requests
 import numpy as np
 from threading import Lock, Thread
 from rpi_camera import Camera
-from picamera.exc import PiCameraMMALError, PiCameraAlreadyRecording, PiCameraError, PiCameraNotRecording
+from picamera.exc import *
 from forms import *
 from config import *
 from itsdangerous import TimedJSONWebSignatureSerializer as Serializer, BadSignature, SignatureExpired
@@ -71,6 +73,30 @@ def index():
 	form = Login()
 	#Redirect to home page
 	return render_template("index.html", form=form)
+
+@app.route("/nig")
+def nig():
+	pw_hash = bcrypt.generate_password_hash("525FFF")
+	#Add the new user into the database
+	result = mongo.db.license.insert_one(
+		{
+			"username": "testing",
+			"license_plate": "525FFF",
+			"license": pw_hash
+		}
+	)
+
+@app.route("/nignog")
+def nigg():
+	user = mongo.db.license.find_one({"username": "testing"})
+	dblicense = user['license']
+	print dblicense
+	test = bcrypt.generate_password_hash("525FFF")
+	testing = bcrypt.check_password_hash(dblicense,"525FFF")
+	print testing
+	return "OK"
+
+
 
 @app.route("/login", methods=["GET", "POST"])
 def login():
@@ -499,8 +525,8 @@ def stoprecord():
 						#set to none so that it can be used again later on
 						camera = None
 						user_email = None
-				except (PiCameraMMALError, PiCameraError, PiCameraAlreadyRecording, PiCameraNotRecording):
-					print "ERROR"
+				except (PiCameraMMALError, PiCameraError, PiCameraAlreadyRecording, PiCameraNotRecording) as e:
+					print e
 		else:
 			flash ("Error, please try again")
 			return render_template("recordvideos.html", form=form)
@@ -551,33 +577,44 @@ class MyMotionDetector(picamera.array.PiMotionAnalysis):
 		    ).clip(0, 255).astype(np.uint8)
 	    # If there're more than 10 vectors with a magnitude greater
 	    # than 60, motion has been detected
-		if (a > 60).sum() > 50:
+		if ((a > 60).sum() > 50):
+			print "MOTION"
 			#if the stop recording button has not been clicked yet,
 			#start taking pictures with the camera and send to
 			#the license plate reading server and email to client
 			if (stop_record is None):
-			    filenames=[]
+				start = time.time()
+				print "GOT TO HERE"
+				filenames=[]
 			    #Take 5 pictures with different filenames (5 seconds)
-			    for i in range(5):
-			    	filename = create_savefile("image")
-			    	#Add the filenames to the list
-			    	filenames.append(filename)
-			    	camera.capture(filename, use_video_port=True)
-			    	time.sleep(1)
+			
+				for i in range(5):
+					filename = create_savefile("image")
+					#Add the filenames to the list
+					filenames.append(filename)
+					camera.capture(filename, use_video_port=True)
+					time.sleep(1)
 
-			    #Run this code then back here
-			    with app.app_context():
-				    self.email_image(user_email, filenames[0],filenames[1],filenames[2],
-				    	filenames[3],filenames[4])
-			    time.sleep(1)
-			    print "SENT EMAIL"
+				print filenames
+			    #Send the pictures via email and to the license plate reading server
+				with app.app_context():
+					print "SENDING EMAIL"
+					self.email_image(user_email, filenames[0],filenames[1],filenames[2], filenames[3],filenames[4])
+					print "SENDING TO LPR"
+					checker = self.send_lpr(LPR_Server, filenames[0],filenames[1],filenames[2],
+						filenames[3],filenames[4])
 
-			    #Send to lpr server
+				#Depending on checker, we will turn on LED or not
+				print checker
+				end = time.time()
+				print "SENT EMAIL and lpr server took: "
+				print (end-start)
 
 			elif (stop_record is True):
 				#sleep must be the same time as wait_recording in stoprecord() function
 				time.sleep(13)
 				stop_record = None
+		return
 
 	def email_image(self, remail, filename1, filename2, filename3, filename4, filename5):
 		subject = "Motion Detected"
@@ -602,6 +639,26 @@ class MyMotionDetector(picamera.array.PiMotionAnalysis):
 		mail.send(msg)
 		time.sleep(2)
 		return
+
+	def send_lpr(self, lpr_server, filename1, filename2, filename3, filename4, filename5):
+		image_url = "http://" + lpr_server + "/get_images"
+		files=[
+		('image1', (filename1, open(os.path.join(filename1), 'rb'), 'image/jpg')),
+		('image2', (filename2, open(os.path.join(filename2), 'rb'), 'image/jpg')),
+		('image3', (filename3, open(os.path.join(filename3), 'rb'), 'image/jpg')),
+		('image4', (filename4, open(os.path.join(filename4), 'rb'), 'image/jpg')),
+		('image5', (filename5, open(os.path.join(filename5), 'rb'), 'image/jpg')),
+		]
+		try:
+			r = requests.post(image_url,files=files)
+		except requests.exceptions.ConnectionError as e:
+			print e
+			return
+		print "SENT TO LPR"
+		print (r.text)
+		time.sleep(2)
+		return r.text
+
 
 ##########################################################################
 #
@@ -630,9 +687,9 @@ def create_savefile(save_location):
 	elif (save_location == "image"):
 		dateTime = time.strftime("%Y-%m-%d,%I%M%S")
 		location = "motion-images/"
-		filename = dateTime  + ".jpeg"
-		return location + filename
-	    
+		filename = location + dateTime  + ".jpeg"
+		return filename
+
 def generate_frames(camera):
     #Video streaming generator function
     while True:
