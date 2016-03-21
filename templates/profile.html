@@ -1,17 +1,22 @@
 {% extends "login-layout.html" %}
-{% block head %}
-<link rel="stylesheet" type="text/css" href="../static/css/bootstrap.min.css">
-<link rel="stylesheet" type="text/css" href="../static/styles.css">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-{% endblock %}
 
 {% block content %}
-<div class="col-xs-4 col-xs-offset-4 text-white">
-    <h3>
-    First Name:{{ fname }}<br><br>
-    Last Name:{{ lname }}<br><br>
-    Email:{{ email }}<br><br>
-    </h3>
+<h3 class="text-center text-success">
+{% with messages = get_flashed_messages() %}
+  {% if messages %}
+    {% for message in messages %}
+      {{ message }}
+    {% endfor %}
+  {% endif %}
+{% endwith %}
+<br>
+</h3>
+<div class="col-xs-12 col-md-4 text-white">
+    <h4>
+    First Name: {{ fname }}<br><br>
+    Last Name: {{ lname }}<br><br>
+    Email: {{ email }}<br><br>
+    </h4>
     <div>Click
     <a href="/showChangePassword">here</a>
     to change your password.
@@ -21,6 +26,9 @@
         {{ form.hidden_tag() }}
         <div class="row">
             <div class="text-center text-white">
+            <h5 class="text-center text-white">
+            The license plate is case sensitive
+            </h5>
                 {{ form.license.label() }}<br> 
                 {{ form.license(placeholder="License Plate", class="form-control", autofocus=true) }}
                 <div class="text-danger">{{ form.license.errors[0] }}<br></div>
@@ -28,10 +36,25 @@
         </div>
         <div class="row">
             <div class="text-center">
-                <br>
                 <input type="submit" id="btnAddLicense" class="btn-success btn-lg" value="Add License Plate">
             </div>
         </div>
     </form>
+</div>
+<div class="col-xs-12 col-md-6 text-white text-center">
+    <h4>
+    Force Lock: {{ flock }}<br>
+    </h4>
+    <form id="forceLock" method="POST" action="forcelock">
+    {{ forceform.hidden_tag() }}
+    {{ forceform.forcelock(class="btn-success") }}
+    </form>
+    <br>
+    <p>
+    When force lock is "True", it will turn off the automatic garage door opener and the garage door will only
+    open via the button below. If force lock is "False", it will turn on the automatic garage door opener.
+    </p>
+    <br><br>
+    <h1>Manual Open button Below</h1>
 </div>
 {% endblock %}

@@ -47,9 +47,9 @@ class ChangePassword(Form):
 	password = PasswordField("New Password", validators=[Required("Please pick a secure password"),
 		Regexp(r'^[\w.@+-]+$', message="Please provide a password without any spaces")])
 
-	confirm_password = PasswordField("Confirm Password", validators=[Required("Required"),
+	confirm_password = PasswordField("Confirm Password", validators=[Required("Password must match with new password"),
 		Regexp(r'^[\w.@+-]+$', message="Please provide a password without any spaces"),
-		EqualTo("password", message="Passwords must match")])
+		EqualTo("password", message="Password must match with new password")])
 
 class CamSettings(Form):
 	brightness = IntegerField("Brightness", default=50, validators=[Required("Please choose a number between 0 and 100"),
@@ -70,3 +70,9 @@ class Recording(Form):
 class LicensePlate(Form):
 	license = TextField("License Plate", validators=[Required("Please provide a license plate without any spaces"),
 		Length(min=4, max=10), Regexp(r'^[\w.@+-]+$', message="Please provide a license plate without any spaces")])
+
+class ForceLock(Form):
+	forcelock = SubmitField("Force Lock")
+
+class GarageDoor(Form):
+	opengarage = SubmitField("Open Garage")

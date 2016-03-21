@@ -1,12 +1,7 @@
 {% extends "layout.html" %}
-{% block head %}
-<link rel="stylesheet" type="text/css" href="../static/css/bootstrap.min.css">
-<link rel="stylesheet" type="text/css" href="../static/styles.css">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-{% endblock %}
 
 {% block content %}
-    <div class="col-xs-4 col-xs-offset-4">
+    <div class="col-xs-12 col-md-offset-4 col-md-4">
         <h1 class="text-center text-white">Sign Up</h1>
         <form id="signUp" method="POST" action="/signUp">
             {{ form.hidden_tag() }}

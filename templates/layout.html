@@ -10,7 +10,7 @@
     {% endblock %}
 </head>
     <body class="body">
-        <nav class="navbar navbar-inverse" id="navbar">
+        <nav class="navbar navbar-inverse col-md-12 col-xs-12" id="navbar">
         {% block navbar %}
             <ul class="nav navbar-nav">
                 <li class="navbar-header">
@@ -18,11 +18,23 @@
                         <img alt="brand" src="../static/images/gdohs-logo.png">
                     </a>
                 </li>
-                <li class="nav-item active">
+                <li class="nav-item">
                     <a href="/" class="nav-link">Home</a>
                 </li>
                 <li class="nav-item">
-                    <a href="/" class="nav-link">Home</a>
+                    <a href="/showProfile" class="nav-link">Profile</a>
+                </li>
+                <li class="nav-item">
+                    <a href="/livestream" class="nav-link">Livestream</a>
+                </li>
+                <li class="nav-item">
+                    <a href="/showRecordvideos" class="nav-link">Recording</a>
+                </li>
+                <li class="nav-item">
+                    <a href="/showDownloadvideos" class="nav-link">Videos</a>
+                </li>
+                <li class="nav-item">
+                    <a href="/showSettings" class="nav-link">Settings</a>
                 </li>
             </ul>
         {% endblock %}

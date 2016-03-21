@@ -58,6 +58,7 @@ camera = None
 cameralock = Lock()
 stop_record = None
 user_email = None
+gd_open = None
 
 #Running db:
 #mongod --dbpath data
@@ -74,40 +75,6 @@ def index():
 	#Redirect to home page
 	return render_template("index.html", form=form)
 
-@app.route("/nig")
-def nig():
-	pw_hash = bcrypt.generate_password_hash("525FFF")
-	#Add the new user into the database
-	# result = mongo.db.license.insert_one(
-	# 	{
-	# 		"username": "testing",
-	# 		"license_plate": "525FFF",
-	# 		"license": [pw_hash,"thing","lol"]
-	# 	}
-	# )
-	user = mongo.db.license.find_one({"username":"testing"})
-	print user
-	current_license=user["license"]
-	print current_license
-	test = "aha"
-	current_license.append(test)
-	mongo.db.license.update_one({"username": "testing"}, {"$set": {'license': current_license}})
-
-
-	return "OK"
-
-@app.route("/nignog")
-def nigg():
-	user = mongo.db.license.find_one({"username": "testing"})
-	dblicense = user['license']
-	print dblicense[0]
-	# test = bcrypt.generate_password_hash("525FFF")
-	# testing = bcrypt.check_password_hash(dblicense,"525FFF")
-	# print testing
-	return "OK"
-
-
-
 @app.route("/login", methods=["GET", "POST"])
 def login():
 	#STILL HAVE TO DO ERROR CHECKING
@@ -122,16 +89,17 @@ def login():
 			user = mongo.db.user.find_one({"username": _username})
 			#from database
 			if (user):
-
+				#Grab requried data
 				user_id = user["_id"]
 				user_name = user["username"]
 				user_pass = user["password"]
 
+				#If user gives the correct password, then log them in
 				if (User.validate_login(user_pass, _password)):
 					user_obj = User(user_id, user_name, user_pass)
 					login_user(user_obj)
 					next = request.args.get('next')
-					return redirect(next or url_for("showProfile"))
+					return redirect(next or url_for("home"))
 				else:
 					flash("Incorrect username or password.")
 					return render_template("index.html", form=form)
@@ -185,7 +153,8 @@ def signUp():
 							"password": pw_hash,
 							"email": _email,
 							"firstname": _firstname,
-							"lastname": _lastname
+							"lastname": _lastname,
+							"forcelock": False
 						}
 					)
 				#Send to sign up success page if user was able to complete the sign up
@@ -321,6 +290,10 @@ def unauthorized_handler():
 #							LOGGED IN FUNCTIONS
 #
 ##########################################################################
+@app.route("/home")
+@login_required
+def home():
+	return render_template("home.html")
 
 @app.route("/livestream")
 @login_required
@@ -332,12 +305,6 @@ def livestream():
 def videostream():
 	return Response(generate_frames(Camera()),
                     mimetype='multipart/x-mixed-replace; boundary=frame')
-
-@app.route("/showRecordvideos")
-@login_required
-def showRecordvideos():
-	form = Recording()
-	return render_template("recordvideos.html", form=form)
 
 @app.route("/showDownloadvideos")
 @login_required
@@ -443,47 +410,161 @@ def settings():
 @app.route("/showProfile")
 @login_required
 def showProfile():
+	#Show user data in profile page
 	username = current_user.username
 	find_user = mongo.db.user.find_one({"username": username})
 	user_fname = find_user["firstname"]
 	user_lname = find_user["lastname"]
 	user_email = find_user["email"]
+	user_flock = find_user["forcelock"]
+	#Forms to be shown in the profile page
 	form = LicensePlate()
-	#Add license plate
-	#1 user = 1 license plat
-	#they would need to update it everytime if they wish to change lp
-	return render_template("profile.html", form=form, fname=user_fname, lname=user_lname, email=user_email)
+	forceform = ForceLock()
+	garageform = GarageDoor()
+	return render_template("profile.html", form=form, forceform=forceform, 
+		fname=user_fname, lname=user_lname, email=user_email, flock=user_flock, garageform=garageform)
 
 @app.route("/addLicense", methods=['GET', 'POST'])
+@login_required
 def addLicense():
+	#User data to be shown in the profile page
 	username = current_user.username
 	find_user = mongo.db.user.find_one({"username": username})
 	user_fname = find_user["firstname"]
 	user_lname = find_user["lastname"]
 	user_email = find_user["email"]
+	user_flock = find_user["forcelock"]
+
+	#Other forms in the page
+	forceform = ForceLock()
+	garageform = GarageDoor()
 
 	if (request.method == "POST"):
 		form=LicensePlate(request.form)
 		if (form.validate_on_submit()):
 			license = form.license.data
-			print license
-			#Add/update license plate
+			#Check for whitespaces
+			if (checkWhitespace(license)):
+				#Grab userid
+				user_id = username_to_userid(username)
+				#if user exist in license collection, update it
+				check_user = mongo.db.license.find_one({"user_id": user_id})
+				if (check_user):
+					#Hash the license
+					license_hash = bcrypt.generate_password_hash(license)
+
+					#Add/Update the new license plate at the end
+					current_license=check_user["license"]
+					current_license.append(license_hash)
+					mongo.db.license.update_one({"user_id": user_id}, {"$set": {'license': current_license}})
+					flash("License plate updated")
+				else:
+					#Add the first license plate into the license document
+					license_hash = bcrypt.generate_password_hash(license)
+					result = mongo.db.license.insert_one(
+						{
+							"user_id": user_id,
+							"license": [license_hash]
+						}
+					)
+					flash("License plate added")
+			else:
+				flash("License plate must not have any whitespaces")
+				return render_template("profile.html", form=form, forceform=forceform, 
+					fname=user_fname, lname=user_lname, email=user_email, flock=user_flock, garageform=garageform)
 		else:
-			return render_template("profile.html", form=form, fname=user_fname, lname=user_lname, email=user_email)
+			return render_template("profile.html", form=form, forceform=forceform, 
+				fname=user_fname, lname=user_lname, email=user_email, flock=user_flock, garageform=garageform)
 	else:
 		return redirect(url_for("showProfile"))
 	return redirect(url_for("showProfile"))
 
+@app.route("/forcelock", methods=['GET', 'POST'])
+@login_required
+def forcelock():
+	#User data in the page
+	username = current_user.username
+	find_user = mongo.db.user.find_one({"username": username})
+	user_fname = find_user["firstname"]
+	user_lname = find_user["lastname"]
+	user_email = find_user["email"]
+	user_flock = find_user["forcelock"]
+
+	#Other forms in the page
+	form=LicensePlate()
+	garageform = GarageDoor()
+
+	if (request.method == "POST"):
+		forceform = ForceLock(request.form)
+		if (forceform.validate_on_submit()):
+			#Change forcelock from true to false and vice versa
+			if (user_flock is True):
+				#Change force lock to false
+				mongo.db.user.update_one({"username": username}, {"$set": {'forcelock': False}})
+			elif (user_flock is False):
+				#Change force lock to True
+				mongo.db.user.update_one({"username": username}, {"$set": {'forcelock': True}})
+			else:
+				print "Error"
+				return render_template("profile.html", form=form, forceform=forceform, 
+					fname=user_fname, lname=user_lname, email=user_email, flock=user_flock, garageform=garageform)
+		else:
+			return render_template("profile.html", form=form, forceform=forceform, 
+				fname=user_fname, lname=user_lname, email=user_email, flock=user_flock, garageform=garageform)
+	return redirect(url_for("showProfile"))
+
+@app.route("/manual", methods=['GET', 'POST'])
+@login_required
+def mgdopen():
+	global gd_open
+	#garage door is currently not opening
+	#Open the garage door
+	return redirect(url_for("showProfile"))
 
 @app.route("/showChangePassword")
+@login_required
 def showChangePassword():
 	form = ChangePassword()
 	return render_template("changepassword.html", form=form)
 
-@app.route("/changePassword")
+@app.route("/changePassword", methods=['GET', 'POST'])
+@login_required
 def changePassword():
+	if (request.method == 'POST'):
+		form = ChangePassword(request.form)
+		current_password = form.current_password.data
+		new_password = form.password.data
+		match_password = form.confirm_password.data
+		#Validates form and checks for whitespaces
+		if (form.validate_on_submit() and checkWhitespace(current_password) and checkWhitespace(new_password)
+			 and checkWhitespace(match_password)):
+			#Check if current password matches in database
+			username = current_user.username
+			find_user = mongo.db.user.find_one({"username":username})
+			check_password = bcrypt.check_password_hash(find_user["password"],current_password)
+			if (check_password):
+				#Check if the 2 password fields matches
+				if (new_password == match_password):
+					#Hash the new password
+					new_hash_pass = bcrypt.generate_password_hash(new_password)
+					#Update to the new password
+					mongo.db.user.update_one({"username": username}, {"$set": {'password': new_hash_pass}})
+					flash("Password Updated")
+				else:
+					form.confirm_password.errors.append("Password must match with new password")
+					return render_template("changepassword.html", form=form)
+			else:
+				form.current_password.errors.append("Current password is incorrect")
+				return render_template("changepassword.html", form=form)
+		else:
+			return render_template("changepassword.html", form=form)
 	return render_template("changepassword.html", form=form)
 
+@app.route("/showRecordvideos")
+@login_required
+def showRecordvideos():
+	form = Recording()
+	return render_template("recordvideos.html", form=form)
 
 @app.route("/startrecord", methods=['GET', 'POST'])
 @login_required

@@ -1,20 +1,15 @@
 {% extends "login-layout.html" %}
-{% block head %}
-<link rel="stylesheet" type="text/css" href="../static/css/bootstrap.min.css">
-<link rel="stylesheet" type="text/css" href="../static/styles.css">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-{% endblock %}
 
 {% block content %}
-<div class="col-xs-12">
+<div class="col-xs-12 col-md-12">
 	<h1 class="text-center text-white">Record Videos</h1>
-	<div class="col-xs-6 text-right">
+	<div class="col-xs-6 col-md-6 text-right">
 	<form id="recordvideos" method="POST" action="/startrecord">
 	{{ form.hidden_tag() }}
 	{{ form.start(class="btn-success") }} 
 	</form>
 	</div>
-	<div class="col-xs-6">
+	<div class="col-xs-6 col-md-6">
 	<form id="recordvideos" method="POST" action="/stoprecord">
 	{{ form.hidden_tag() }}
 	{{ form.stop(class="btn-success") }} 
@@ -22,7 +17,7 @@
 	</div>
 </div>
 <br>
-<div class="col-xs-12">
+<div class="col-xs-12 col-md-12">
 	<div class="row">
 	    <h2 class="text-center text-white">
 	        {% with messages = get_flashed_messages() %}
