@@ -12,6 +12,8 @@ import picamera.array
 import requests
 import numpy as np
 from threading import Lock, Thread
+from multiprocessing.pool import ThreadPool
+from sense_hat import SenseHat
 from rpi_camera import Camera
 from picamera.exc import *
 from forms import *
@@ -59,6 +61,7 @@ cameralock = Lock()
 stop_record = None
 user_email = None
 gd_open = None
+flock = None
 
 #Running db:
 #mongod --dbpath data
@@ -454,9 +457,7 @@ def addLicense():
 					license_hash = bcrypt.generate_password_hash(license)
 
 					#Add/Update the new license plate at the end
-					current_license=check_user["license"]
-					current_license.append(license_hash)
-					mongo.db.license.update_one({"user_id": user_id}, {"$set": {'license': current_license}})
+					mongo.db.license.update_one({"user_id": user_id}, {"$set": {'license': license_hash}})
 					flash("License plate updated")
 				else:
 					#Add the first license plate into the license document
@@ -464,7 +465,7 @@ def addLicense():
 					result = mongo.db.license.insert_one(
 						{
 							"user_id": user_id,
-							"license": [license_hash]
+							"license": license_hash
 						}
 					)
 					flash("License plate added")
@@ -482,7 +483,9 @@ def addLicense():
 @app.route("/forcelock", methods=['GET', 'POST'])
 @login_required
 def forcelock():
+	global flock
 	#User data in the page
+	
 	username = current_user.username
 	find_user = mongo.db.user.find_one({"username": username})
 	user_fname = find_user["firstname"]
@@ -499,9 +502,13 @@ def forcelock():
 		if (forceform.validate_on_submit()):
 			#Change forcelock from true to false and vice versa
 			if (user_flock is True):
+				#Set force lock into false
+				flock = False
 				#Change force lock to false
 				mongo.db.user.update_one({"username": username}, {"$set": {'forcelock': False}})
 			elif (user_flock is False):
+				#Set force lock into true
+				flock = True
 				#Change force lock to True
 				mongo.db.user.update_one({"username": username}, {"$set": {'forcelock': True}})
 			else:
@@ -517,6 +524,8 @@ def forcelock():
 @login_required
 def mgdopen():
 	global gd_open
+	print flock
+	print gd_open
 	#garage door is currently not opening
 	#Open the garage door
 	return redirect(url_for("showProfile"))
@@ -701,6 +710,7 @@ class MyMotionDetector(picamera.array.PiMotionAnalysis):
 	def analyse(self, a):
 		global stop_record
 		global user_email
+		global gd_open
 		a = np.sqrt(
 		    np.square(a['x'].astype(np.float)) +
 		    np.square(a['y'].astype(np.float))
@@ -727,19 +737,33 @@ class MyMotionDetector(picamera.array.PiMotionAnalysis):
 					time.sleep(1)
 
 				print filenames
-			    #Send the pictures via email and to the license plate reading server
-				with app.app_context():
-					print "SENDING EMAIL"
-					self.email_image(user_email, filenames[0],filenames[1],filenames[2], filenames[3],filenames[4])
-					print "SENDING TO LPR"
-					checker = self.send_lpr(LPR_Server, filenames[0],filenames[1],filenames[2],
+				#Send pictures via email
+				self.email_image(user_email, filenames[0],filenames[1],filenames[2], filenames[3],filenames[4])
+				#Send images to the license plate reading server
+				checker = self.send_lpr(LPR_Server, filenames[0],filenames[1],filenames[2],
 						filenames[3],filenames[4])
 
 				#Depending on checker, we will turn on LED or not
+				# if (checker == "Open"):
+				# 	print checker
+				# 	if (gd_open is None):
+				# 		gd_open = True
+				# 		self.agdopen(flock)
+				# 		gd_open = None
+				# 	elif(gd_open is True):
+				# 		print "GD IS OPENING ALREADY"
+				# 		return
+				# elif(checker == "Error"):
+				# 	print "Error"
+				# 	return
+				# else:
+				# 	return
+				print "CHECKER IS"
 				print checker
 				end = time.time()
 				print "SENT EMAIL and lpr server took: "
 				print (end-start)
+				time.sleep(2)
 
 			elif (stop_record is True):
 				#sleep must be the same time as wait_recording in stoprecord() function
@@ -755,7 +779,7 @@ class MyMotionDetector(picamera.array.PiMotionAnalysis):
 			sender=Mail_User,
 			recipients=[remail])
 
-		#Attach the 5 images to the email
+		#Attach the 5 images to the email and send them to the user
 		with app.open_resource(filename1) as fp:
 		    msg.attach(filename1, "image/jpeg", fp.read())
 		with app.open_resource(filename2) as fp:
@@ -767,11 +791,16 @@ class MyMotionDetector(picamera.array.PiMotionAnalysis):
 		with app.open_resource(filename5) as fp:
 		    msg.attach(filename5, "image/jpeg", fp.read())
 
-		mail.send(msg)
-		time.sleep(2)
+		thr = Thread(target=self.send_email, args=[app, msg])
+		thr.start()
 		return
 
+	def send_email(self, app, msg):
+		with app.app_context():
+			mail.send(msg)
+
 	def send_lpr(self, lpr_server, filename1, filename2, filename3, filename4, filename5):
+		#Send images to the lpr server
 		image_url = "http://" + lpr_server + "/get_images"
 		files=[
 		('image1', (filename1, open(os.path.join(filename1), 'rb'), 'image/jpg')),
@@ -781,14 +810,29 @@ class MyMotionDetector(picamera.array.PiMotionAnalysis):
 		('image5', (filename5, open(os.path.join(filename5), 'rb'), 'image/jpg')),
 		]
 		try:
-			r = requests.post(image_url,files=files)
+			async_result = pool.apply_async(self.send_request, (app, image_url,files))
+			value = async_result.get()
+			print "RETURN VAL IS"
+			print value
 		except requests.exceptions.ConnectionError as e:
 			print e
 			return
 		print "SENT TO LPR"
-		print (r.text)
-		time.sleep(2)
-		return r.text
+		return value
+
+	def send_request(self, app, image_url, files):
+		with app.app_context():
+			r = requests.post(image_url,files=files)
+			return r.text
+
+	def agdopen(self, flock):
+		print "IN AGDOPEN"
+		sense = SenseHat()
+		print flock
+		#Check if forcelock is enabled
+		#Turn on LED
+		return
+
 
 
 ##########################################################################
@@ -884,4 +928,5 @@ def string_split_res(resolution):
 	return width, height
 
 if __name__ == "__main__":
+	pool = ThreadPool(processes=5)
 	app.run(debug=True, host='0.0.0.0', threaded=True)
