@@ -6,8 +6,6 @@ from config import *
 from flask.ext.pymongo import PyMongo
 from flask.ext.bcrypt import Bcrypt
 
-
-
 app = Flask(__name__)
 
 app.config['MONGO_DBNAME'] = DB_Name
@@ -27,7 +25,6 @@ def get_images():
         image = request.files
 
         #Save the images locally
-        
         for x in range(1,6):
             filename = create_savefile(x)
             filenames.append(filename)
@@ -35,42 +32,48 @@ def get_images():
                 for chunk in image["image" + str(x)]:
                     f.write(chunk)
 
+    #List of license plate characters that were gotten from image
+    #could be empty which means that the alpr did not find any license plates
     lpr = license_read(filenames)
-    user = mongo.db.license.find_one({"username": "testing"})
-    dblicense = user['license']
-    print dblicense
-    #if alpr recognizes a license plate, show it ***CHANGE HARD CODED SHIT***
+
+    #Get all the license plates to try and match it with the user
+    results = mongo.db.license.find({},{"license":1,"_id":0})
+
+    #Grab user id then license plate
+    #if alpr recognizes a license plate, add it onto the check_match list
     if(lpr):
-        print lpr
         check_match=[]
-        for i in lpr:
-            testing = bcrypt.check_password_hash(dblicense,i)
-            check_match.append(testing)
-            print i
-        print check_match
+        #This will slow down depending on how many license plates are in the database
+        #but this app is meant for about 5 people so about 5 license plates
+        for result in results:
+            dblicense = result["license"]
+            #Check if any of the license plate from the images
+            #matches the hashed license plate in the database
+            #and add them onto the check_match list
+            for i in lpr:
+                check_license = bcrypt.check_password_hash(dblicense,i)
+                check_match.append(check_license)
+        
+        #If any of the license plates mathces, send the open signal to the rpi
+        #to turn on the LED lights, else return false signal
         for x in check_match:
             if x is True:
                 return "Open"
             else:
-                return "nice try"
-        return Response(json.dumps(check_match),  mimetype='application/json')
-        #Check db
+                return "False"
     #else if the list is empty, the alpr did not recognize any license plate
     elif(not lpr):
-        print "LIST IS EMPTY"
-        return "sdfsdfds"
-
-
-    return "OK"
-
-def test():
-    print "TEST"
-    for x in range(10):
-        print x
-        time.sleep(1)
-    return "OK"
+        print "EMPTY"
+        return "Empty"
+    #else if the lpr returns error, send back error
+    elif(lpr == "Error"):
+        print "ERROR"
+        return "Error"
+    #If it did not process any of the above, return an error
+    return "Error"
 
 def create_savefile(num):
+    #Create filename for the images that are sent here from the rpi
     dateTime = time.strftime("%Y-%m-%d,%I%M%S"+str(num))
     location = "motion-images/"
     filename = location + dateTime  + ".jpeg"
@@ -85,7 +88,7 @@ def license_read(filenames=[]):
     #Ensures that the alpr is loaded and can be used
     if not alpr.is_loaded():
         print("Error loading OpenALPR")
-        return
+        return "Error"
     elif(alpr.is_loaded()):
         alpr.set_top_n(1)
         alpr.set_default_region('md')
@@ -100,47 +103,7 @@ def license_read(filenames=[]):
                     #Appends nothing if it didnt find any license plate
                     license_plates.append(candidate["plate"])
         return license_plates
-    return
+    return "Error"
 
 if __name__ == "__main__":
     app.run(debug=True, host='0.0.0.0', port=5000, threaded=True)
-
-
-
-
-
-# from openalpr import Alpr
-
-# alpr = None
-# try:
-#     alpr = Alpr("us", "/etc/openalpr/openalpr.conf", "/home/baus/Documents/openalpr/runtime_data/")
-#     #Ensures that the alpr is loaded and can be used
-#     if not alpr.is_loaded():
-#         print("Error loading OpenALPR")
-#         sys.exit(1)
-#     elif(alpr.is_loaded()):
-#         alpr.set_top_n(1)
-#         alpr.set_default_region('md')
-
-#         results = alpr.recognize_file("emma.jpg")
-
-#         license_plates=[]
-#         for plate in results["results"]:
-#             for candidate in plate["candidates"]:
-#                 if candidate["matches_template"]:
-#                     print "test"
-#                 license_plates.append(candidate["plate"])
-#                 print(" %12s - %2f" % (candidate["plate"], candidate["confidence"]))
-
-        # #if alpr recognizes a license plate, show it
-        # if(license_plates):
-        #     print license_plates[0]
-        #     #Check db
-        # #else if the list is empty, the alpr did not recognize any license plate
-        # elif(not license_plates):
-        #     print "LIST IS EMPTY"
-
-# finally:
-#     #Releases memory
-#     if alpr:
-#         alpr.unload()
