@@ -308,8 +308,28 @@ def videostream():
 
 @app.route("/showDownloadvideos")
 @login_required
-def downloadvideos():
-	return render_template("video.html")
+def showDownloadVideos():
+	videos = os.listdir("videos")
+	num_vid = len(videos)
+	if not videos:
+		flash("There are currently no videos that can be downloaded")
+		return render_template("video.html", count=num_vid)
+	else:
+		return render_template("video.html", videos=videos, count=num_vid)
+	return render_template("video.html", videos=videos, count=num_vid)
+
+@app.route("/downloadvideos/<filename>")
+@login_required
+def downloadvideos(filename):
+	videos = os.listdir("videos")
+
+	for video in videos:
+		if (video == filename):
+			return send_from_directory('videos', filename, as_attachment=True)
+		else:
+			flash("Video does not exist")
+			return redirect(url_for("showDownloadvideos"))
+	return redirect(url_for("showDownloadvideos"))
 
 @app.route("/showSettings")
 @login_required
@@ -691,7 +711,8 @@ def stoprecord():
 						#set to none so that it can be used again later on
 						camera = None
 						user_email = None
-				except (PiCameraMMALError, PiCameraError, PiCameraAlreadyRecording, PiCameraNotRecording) as e:
+				except (PiCameraMMALError, PiCameraError, PiCameraAlreadyRecording, 
+					PiCameraRuntimeError, PiCameraNotRecording) as e:
 					print e
 		else:
 			flash ("Error, please try again")
@@ -738,6 +759,7 @@ class MyMotionDetector(picamera.array.PiMotionAnalysis):
 		global stop_record
 		global user_email
 		global gd_open
+		test = True
 		a = np.sqrt(
 		    np.square(a['x'].astype(np.float)) +
 		    np.square(a['y'].astype(np.float))
@@ -753,14 +775,19 @@ class MyMotionDetector(picamera.array.PiMotionAnalysis):
 				start = time.time()
 				print "GOT TO HERE"
 				filenames=[]
-			    #Take 5 pictures with different filenames (5 seconds)
-			
-				for i in range(5):
-					filename = create_savefile("image")
-					#Add the filenames to the list
-					filenames.append(filename)
-					camera.capture(filename, use_video_port=True)
-					time.sleep(1)
+				try:
+				    #Take 5 pictures with different filenames (5 seconds)
+					for i in range(5):
+						filename = create_savefile("image")
+						#Add the filenames to the list
+						filenames.append(filename)
+						camera.capture(filename, use_video_port=True)
+						time.sleep(1)
+				except (PiCameraRuntimeError, PiCameraError, PiCameraMMALError) as e:
+					print "Got error of some kind"
+					print e
+					return
+
 
 				print filenames
 				#Send pictures via email
@@ -788,7 +815,6 @@ class MyMotionDetector(picamera.array.PiMotionAnalysis):
 				print (end-start)
 
 			elif (stop_record is True):
-				#sleep must be the same time as wait_recording in stoprecord() function
 				time.sleep(20)
 				stop_record = None
 		return
@@ -845,9 +871,6 @@ class MyMotionDetector(picamera.array.PiMotionAnalysis):
 					return result
 				except Empty:
 					time.sleep(1)
-		# print "RETURN VAL IS"
-		
-		print "SENT TO LPR"
 		return 
 
 	def send_request(self, app, image_url, files, q):

@@ -1,5 +1,22 @@
 {% extends "login-layout.html" %}
 
 {% block content %}
-<h1 class="text-white"> Download videos</h1>
+<div class="col-xs-12 col-md-12 text-white">
+	<div class="col-xs-12 col-md-6 text-white">
+	<h3>Number of videos available for download is {{ count }}</h3>
+	{% for video in videos %}  
+	    <a href="{{ url_for('downloadvideos', filename=video)}}" class="btn-danger btn-md">{{ video }}</a>
+	    <br>
+	{% endfor %}
+	</div>
+	<div class="col-xs-12 col-md-6 text-white">
+		{% with messages = get_flashed_messages() %}
+		  {% if messages %}
+		    {% for message in messages %}
+		      {{ message }}
+		    {% endfor %}
+		  {% endif %}
+		{% endwith %}
+	</div> 
+</div>
 {% endblock %}
