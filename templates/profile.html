@@ -55,6 +55,14 @@
     open via the button below. If force lock is "False", it will turn on the automatic garage door opener.
     </p>
     <br><br>
-    <h1>Manual Open button Below</h1>
+    <h4>Open Garage Door Manually?</h4>
+    <form id="mgdopen" method="POST" action="manual">
+    {{ forceform.hidden_tag() }}
+    {{ garageform.opengarage(class="btn-success") }}
+    </form>
+    <br>
+    <p>
+    This will open the garage door manually whether or not the force lock is enabled or disabled.
+    </p>
 </div>
 {% endblock %}

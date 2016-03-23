@@ -4,7 +4,6 @@
 #
 ##########################################################################
 
-import re
 import picamera
 import time
 import os
@@ -12,7 +11,7 @@ import picamera.array
 import requests
 import numpy as np
 from threading import Lock, Thread
-from multiprocessing.pool import ThreadPool
+from Queue import Queue, Empty
 from sense_hat import SenseHat
 from rpi_camera import Camera
 from picamera.exc import *
@@ -61,7 +60,7 @@ cameralock = Lock()
 stop_record = None
 user_email = None
 gd_open = None
-flock = None
+flock = False
 
 #Running db:
 #mongod --dbpath data
@@ -80,7 +79,6 @@ def index():
 
 @app.route("/login", methods=["GET", "POST"])
 def login():
-	#STILL HAVE TO DO ERROR CHECKING
 	if (request.method == 'POST'):
 		form = Login(request.form)
 		if(form.validate_on_submit()):
@@ -90,9 +88,8 @@ def login():
 
 			#check if user exist in db
 			user = mongo.db.user.find_one({"username": _username})
-			#from database
 			if (user):
-				#Grab requried data
+				#Grab required data
 				user_id = user["_id"]
 				user_name = user["username"]
 				user_pass = user["password"]
@@ -384,9 +381,6 @@ def settings():
 									}
 								)
 								flash("Settings Updated")
-							# else:
-							# 	flash("Error, please try again.")
-							# 	return render_template("settings.html", form=form)
 						else:
 							#Vertical flip error check
 							form.vflip.errors.append("Choice not valid")
@@ -500,19 +494,24 @@ def forcelock():
 	if (request.method == "POST"):
 		forceform = ForceLock(request.form)
 		if (forceform.validate_on_submit()):
-			#Change forcelock from true to false and vice versa
-			if (user_flock is True):
-				#Set force lock into false
-				flock = False
-				#Change force lock to false
-				mongo.db.user.update_one({"username": username}, {"$set": {'forcelock': False}})
-			elif (user_flock is False):
-				#Set force lock into true
-				flock = True
-				#Change force lock to True
-				mongo.db.user.update_one({"username": username}, {"$set": {'forcelock': True}})
+			data = forceform.forcelock.data
+			if (data is True):
+				#Change forcelock from true to false and vice versa
+				if (user_flock is True):
+					#Set force lock into false
+					flock = False
+					#Change force lock to false
+					mongo.db.user.update_one({"username": username}, {"$set": {'forcelock': False}})
+				elif (user_flock is False):
+					#Set force lock into true
+					flock = True
+					#Change force lock to True
+					mongo.db.user.update_one({"username": username}, {"$set": {'forcelock': True}})
+				else:
+					print "Error"
+					return render_template("profile.html", form=form, forceform=forceform, 
+						fname=user_fname, lname=user_lname, email=user_email, flock=user_flock, garageform=garageform)
 			else:
-				print "Error"
 				return render_template("profile.html", form=form, forceform=forceform, 
 					fname=user_fname, lname=user_lname, email=user_email, flock=user_flock, garageform=garageform)
 		else:
@@ -524,10 +523,38 @@ def forcelock():
 @login_required
 def mgdopen():
 	global gd_open
-	print flock
-	print gd_open
-	#garage door is currently not opening
-	#Open the garage door
+	username = current_user.username
+	find_user = mongo.db.user.find_one({"username": username})
+	user_fname = find_user["firstname"]
+	user_lname = find_user["lastname"]
+	user_email = find_user["email"]
+	user_flock = find_user["forcelock"]
+
+	#Other forms in the page
+	form=LicensePlate()
+	garageform = GarageDoor()
+	forceform = ForceLock()
+
+	if (request.method == "POST"):
+		garageform = GarageDoor(request.form)
+		if (garageform.validate_on_submit()):
+			data = garageform.opengarage.data
+			#Checks if the button was clicked
+			if (data is True):
+				#Checks if LED is currently on before proceeding
+				if (gd_open is None):
+					gd_open = True
+					if (flock is True or flock is False):
+						wait = True
+						while wait:
+							gd_sense()
+							gd_open = None
+							wait = None
+					else:
+						return redirect(url_for("showProfile"))
+				elif(gd_open is True):
+					flash ("LED lights are currently on")
+					return redirect(url_for("showProfile"))
 	return redirect(url_for("showProfile"))
 
 @app.route("/showChangePassword")
@@ -657,7 +684,7 @@ def stoprecord():
 			else:
 				try:
 					with cameralock:
-						camera.wait_recording(13)
+						camera.wait_recording(20)
 						camera.stop_recording()
 						camera.close()
 						flash("Stopped Recording on " + time.strftime("%Y-%m-%d %I:%M:%S") + ".")
@@ -718,7 +745,6 @@ class MyMotionDetector(picamera.array.PiMotionAnalysis):
 	    # If there're more than 10 vectors with a magnitude greater
 	    # than 60, motion has been detected
 		if ((a > 60).sum() > 50):
-			wait = True
 			print "MOTION"
 			#if the stop recording button has not been clicked yet,
 			#start taking pictures with the camera and send to
@@ -744,30 +770,26 @@ class MyMotionDetector(picamera.array.PiMotionAnalysis):
 						filenames[3],filenames[4])
 
 				#Depending on checker, we will turn on LED or not
-				# if (checker == "Open"):
-				# 	print checker
-				# 	if (gd_open is None):
-				# 		gd_open = True
-				# 		self.agdopen(flock)
-				# 		gd_open = None
-				# 	elif(gd_open is True):
-				# 		print "GD IS OPENING ALREADY"
-				# 		return
-				# elif(checker == "Error"):
-				# 	print "Error"
-				# 	return
-				# else:
-				# 	return
-				print "CHECKER IS"
-				print checker
+				if (checker == "Open"):
+					if (gd_open is None):
+						gd_open = True
+						self.agdopen(flock)
+						gd_open = None
+					elif(gd_open is True):
+						print "Garage door is already opening"
+						return
+				elif(checker == "Error"):
+					print "Error"
+					return
+				else:
+					print "Probably Empty"
+					return
 				end = time.time()
-				print "SENT EMAIL and lpr server took: "
 				print (end-start)
-				time.sleep(2)
 
 			elif (stop_record is True):
 				#sleep must be the same time as wait_recording in stoprecord() function
-				time.sleep(13)
+				time.sleep(20)
 				stop_record = None
 		return
 
@@ -800,6 +822,7 @@ class MyMotionDetector(picamera.array.PiMotionAnalysis):
 			mail.send(msg)
 
 	def send_lpr(self, lpr_server, filename1, filename2, filename3, filename4, filename5):
+		wait = True
 		#Send images to the lpr server
 		image_url = "http://" + lpr_server + "/get_images"
 		files=[
@@ -809,28 +832,44 @@ class MyMotionDetector(picamera.array.PiMotionAnalysis):
 		('image4', (filename4, open(os.path.join(filename4), 'rb'), 'image/jpg')),
 		('image5', (filename5, open(os.path.join(filename5), 'rb'), 'image/jpg')),
 		]
-		try:
-			async_result = pool.apply_async(self.send_request, (app, image_url,files))
-			value = async_result.get()
-			print "RETURN VAL IS"
-			print value
-		except requests.exceptions.ConnectionError as e:
-			print e
-			return
+		q = Queue()
+		# async_result = pool.apply_async(self.send_request, (app, image_url, files))
+		# value = async_result.get()
+		thr = Thread(target=self.send_request, args=[app, image_url, files, q])
+		thr.start()
+		if q.qsize()==0:
+			time.sleep(10)
+			if q.qsize()>0:
+				try:
+					result = q.get(block=False)
+					return result
+				except Empty:
+					time.sleep(1)
+		# print "RETURN VAL IS"
+		
 		print "SENT TO LPR"
-		return value
+		return 
 
-	def send_request(self, app, image_url, files):
+	def send_request(self, app, image_url, files, q):
 		with app.app_context():
 			r = requests.post(image_url,files=files)
-			return r.text
+			q.put(r.text)
 
 	def agdopen(self, flock):
 		print "IN AGDOPEN"
-		sense = SenseHat()
 		print flock
-		#Check if forcelock is enabled
-		#Turn on LED
+		wait = True
+		#Check if force lock is True or False
+		#if its true, dont turn on LED
+		#if false, then turn on LED
+		if (flock is True):
+			return
+		elif (flock is False):
+			while wait:
+				gd_sense()
+				wait = None
+		else:
+			return
 		return
 
 
@@ -927,6 +966,34 @@ def string_split_res(resolution):
 	height = int(split[1])
 	return width, height
 
+def gd_sense():
+	#Turns on the sensehat(LED lights portion)
+	sense = SenseHat()
+	sense.show_message("Opening", text_colour=[0, 255, 0], scroll_speed=0.03)
+	for i in reversed(range(1,4)):
+		randr = randint(20,255)
+		randg = randint(20,255)
+		randb = randint(20,255)
+		sense.show_letter(str(i), text_colour=[randr,randg,randb])
+		time.sleep(1)
+	sense.show_message("Opened", text_colour=[0, 255, 0], scroll_speed=0.03)
+
+	for i in reversed(range(0,10)):
+		randr = randint(20,255)
+		randg = randint(20,255)
+		randb = randint(20,255)
+		sense.show_letter(str(i), text_colour=[randr,randg,randb])
+		time.sleep(1)
+
+	sense.show_message("Closing", text_colour=[255, 0, 0], scroll_speed=0.03)
+	for i in reversed(range(1,4)):
+		randr = randint(20,255)
+		randg = randint(20,255)
+		randb = randint(20,255)
+		sense.show_letter(str(i), text_colour=[randr,randg,randb])
+		time.sleep(1)
+	sense.show_message("Closed", text_colour=[255, 0, 0], scroll_speed=0.03)
+	sense.clear()
+
 if __name__ == "__main__":
-	pool = ThreadPool(processes=5)
 	app.run(debug=True, host='0.0.0.0', threaded=True)
