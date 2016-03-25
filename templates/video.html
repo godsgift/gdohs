@@ -2,14 +2,21 @@
 
 {% block content %}
 <div class="col-xs-12 col-md-12 text-white">
-	<div class="col-xs-12 col-md-6 text-white">
-	<h3>Number of videos available for download is {{ count }}</h3>
-	{% for video in videos %}  
-	    <a href="{{ url_for('downloadvideos', filename=video)}}" class="btn-danger btn-md">{{ video }}</a>
-	    <br>
-	{% endfor %}
+	<div class="col-xs-12 col-md-6 text-white text-right">
+		<h3>Download Videos? ({{ count }})</h3>
+		{% for video in videos %}  
+		    <a href="{{ url_for('downloadvideos', filename=video)}}" class="btn-success btn-md">{{ video }}</a>
+		    <br>
+		{% endfor %}
 	</div>
-	<div class="col-xs-12 col-md-6 text-white">
+		<div class="col-xs-12 col-md-6 text-white">
+		<h3>Delete Videos? ({{ count }})</h3>
+		{% for video in videos %}  
+		    <a href="{{ url_for('deletevideos', filename=video)}}" class="btn-danger btn-md">{{ video }}</a>
+		    <br>
+		{% endfor %}
+	</div>
+	<div class="row col-xs-12 col-md-12 text-white text-center">
 		{% with messages = get_flashed_messages() %}
 		  {% if messages %}
 		    {% for message in messages %}

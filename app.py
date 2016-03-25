@@ -4,16 +4,17 @@
 #
 ##########################################################################
 
+import re
 import picamera
 import time
 import os
+import io
 import picamera.array
 import requests
 import numpy as np
 from threading import Lock, Thread
 from Queue import Queue, Empty
 from sense_hat import SenseHat
-from rpi_camera import Camera
 from picamera.exc import *
 from forms import *
 from config import *
@@ -36,7 +37,10 @@ app = Flask(__name__)
 
 #Mongodb Settings
 app.config['MONGO_DBNAME'] = DB_Name
-#need to add username and pass for db
+app.config['MONGO_USERNAME'] = DB_User
+app.config['MONGO_PASSWORD'] = DB_Pass
+
+#Flask-Mail Settings
 app.config['MAIL_SERVER'] = 'smtp.gmail.com'
 app.config['MAIL_PORT'] = 465
 app.config['MAIL_USE_TLS'] = False
@@ -73,8 +77,8 @@ flock = False
 
 @app.route("/")
 def index():
-	form = Login()
 	#Redirect to home page
+	form = Login()
 	return render_template("index.html", form=form)
 
 @app.route("/login", methods=["GET", "POST"])
@@ -322,14 +326,20 @@ def showDownloadVideos():
 @login_required
 def downloadvideos(filename):
 	videos = os.listdir("videos")
+	for video in videos:
+		if (filename == video):
+			return send_from_directory('videos', video, as_attachment=True)
+	return redirect(url_for("showDownloadVideos"))
 
+@app.route("/deletevideos/<filename>")
+@login_required
+def deletevideos(filename):
+	folder = "videos"
+	videos = os.listdir(folder)
 	for video in videos:
 		if (video == filename):
-			return send_from_directory('videos', filename, as_attachment=True)
-		else:
-			flash("Video does not exist")
-			return redirect(url_for("showDownloadvideos"))
-	return redirect(url_for("showDownloadvideos"))
+			os.remove(folder+"/"+filename)
+	return redirect(url_for("showDownloadVideos"))
 
 @app.route("/showSettings")
 @login_required
@@ -499,7 +509,6 @@ def addLicense():
 def forcelock():
 	global flock
 	#User data in the page
-	
 	username = current_user.username
 	find_user = mongo.db.user.find_one({"username": username})
 	user_fname = find_user["firstname"]
@@ -714,6 +723,8 @@ def stoprecord():
 				except (PiCameraMMALError, PiCameraError, PiCameraAlreadyRecording, 
 					PiCameraRuntimeError, PiCameraNotRecording) as e:
 					print e
+				#Deletes all the images in the motion-images directory
+				delete_images()
 		else:
 			flash ("Error, please try again")
 			return render_template("recordvideos.html", form=form)
@@ -758,7 +769,7 @@ class MyMotionDetector(picamera.array.PiMotionAnalysis):
 	def analyse(self, a):
 		global stop_record
 		global user_email
-		global gd_open
+		
 		test = True
 		a = np.sqrt(
 		    np.square(a['x'].astype(np.float)) +
@@ -788,29 +799,13 @@ class MyMotionDetector(picamera.array.PiMotionAnalysis):
 					print e
 					return
 
-
 				print filenames
 				#Send pictures via email
 				self.email_image(user_email, filenames[0],filenames[1],filenames[2], filenames[3],filenames[4])
 				#Send images to the license plate reading server
-				checker = self.send_lpr(LPR_Server, filenames[0],filenames[1],filenames[2],
+				self.send_lpr(LPR_Server, filenames[0],filenames[1],filenames[2],
 						filenames[3],filenames[4])
 
-				#Depending on checker, we will turn on LED or not
-				if (checker == "Open"):
-					if (gd_open is None):
-						gd_open = True
-						self.agdopen(flock)
-						gd_open = None
-					elif(gd_open is True):
-						print "Garage door is already opening"
-						return
-				elif(checker == "Error"):
-					print "Error"
-					return
-				else:
-					print "Probably Empty"
-					return
 				end = time.time()
 				print (end-start)
 
@@ -858,25 +853,33 @@ class MyMotionDetector(picamera.array.PiMotionAnalysis):
 		('image4', (filename4, open(os.path.join(filename4), 'rb'), 'image/jpg')),
 		('image5', (filename5, open(os.path.join(filename5), 'rb'), 'image/jpg')),
 		]
-		q = Queue()
 		# async_result = pool.apply_async(self.send_request, (app, image_url, files))
 		# value = async_result.get()
-		thr = Thread(target=self.send_request, args=[app, image_url, files, q])
+		thr = Thread(target=self.send_request, args=[app, image_url, files])
 		thr.start()
-		if q.qsize()==0:
-			time.sleep(10)
-			if q.qsize()>0:
-				try:
-					result = q.get(block=False)
-					return result
-				except Empty:
-					time.sleep(1)
 		return 
 
-	def send_request(self, app, image_url, files, q):
+	def send_request(self, app, image_url, files):
+		global gd_open
 		with app.app_context():
 			r = requests.post(image_url,files=files)
-			q.put(r.text)
+			checker = r.text
+
+			#Depending on checker, we will turn on LED or not
+			if (checker == "Open"):
+				if (gd_open is None):
+					gd_open = True
+					self.agdopen(flock)
+					gd_open = None
+				elif(gd_open is True):
+					print "Garage door is already opening"
+					return
+			elif(checker == "Error"):
+				print "Error"
+				return
+			else:
+				print "Probably Empty"
+				return
 
 	def agdopen(self, flock):
 		print "IN AGDOPEN"
@@ -895,6 +898,46 @@ class MyMotionDetector(picamera.array.PiMotionAnalysis):
 			return
 		return
 
+class Camera(object):
+    thread = None
+    frame = None
+    start = 0
+
+    def create_thread(self):
+        if Camera.thread is None:
+            #create the thread
+            Camera.thread = Thread(target=self.livestream)
+            Camera.thread.start()
+
+            # wait until frames start to be available
+            while self.frame is None:
+                time.sleep(0)
+
+    def get_frame(self):
+        Camera.start = time.time()
+        self.create_thread()
+        return self.frame
+
+    @classmethod
+    def livestream(cls):
+        with picamera.PiCamera() as camera:
+            # camera setup
+            camera.resolution = (640, 480)
+            stream = io.BytesIO()
+            for foo in camera.capture_continuous(stream, 'jpeg',
+                                                 use_video_port=True):
+                #store the frame to be shown
+                stream.seek(0)
+                cls.frame = stream.read()
+
+                #reset the stream for the next frame
+                stream.seek(0)
+                stream.truncate()
+
+                #Stop the thread after 3 seconds of no clients
+                if time.time() - cls.start > 3:
+                    break
+        cls.thread = None
 
 
 ##########################################################################
@@ -1017,6 +1060,18 @@ def gd_sense():
 		time.sleep(1)
 	sense.show_message("Closed", text_colour=[255, 0, 0], scroll_speed=0.03)
 	sense.clear()
+	return
+
+def delete_images():
+	#Deletes all the images captured by the motion detector
+	folder = "motion-images"
+	images = os.listdir(folder)
+	if images:
+		for image in images:
+			os.remove(folder+"/"+image)
+		return
+	else:
+		return "EMPTY"
 
 if __name__ == "__main__":
 	app.run(debug=True, host='0.0.0.0', threaded=True)

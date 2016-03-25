@@ -1,10 +1,14 @@
 from pymongo import *
+from config import DB_Name, DB_User, DB_Pass
 
 client = MongoClient()
 
 #Start up script to create the empty database with empty collections/tables
 def main():
-	db = client['gdohs']
+	db = client[DB_Name]
+	db.add_user(DB_User, DB_Pass, roles=["readWrite"])
+	db.authenticate(DB_User, DB_Pass, source=DB_Name)
+	
 	#Create users table
 	result = db.user.insert_one(
 				{
@@ -22,15 +26,6 @@ def main():
 			)
 
 	result = db.license.delete_many({})
-
-	#Create evetns table
-	result = db.events.insert_one(
-				{
-					"username": "test"
-				}
-			)
-
-	result = db.events.delete_many({})
 
 	#Create reset password table
 	result = db.resetpassword.insert_one(
