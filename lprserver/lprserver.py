@@ -9,6 +9,8 @@ from flask.ext.bcrypt import Bcrypt
 app = Flask(__name__)
 
 app.config['MONGO_DBNAME'] = DB_Name
+app.config['MONGO_USERNAME'] = DB_User
+app.config['MONGO_PASSWORD'] = DB_Pass
 app.config['MONGO_HOST'] = DB_IP
 app.config['MONGO_PORT'] = DB_Port
 
