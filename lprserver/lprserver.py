@@ -65,11 +65,9 @@ def get_images():
                 return "False"
     #else if the list is empty, the alpr did not recognize any license plate
     elif(not lpr):
-        print "EMPTY"
         return "Empty"
     #else if the lpr returns error, send back error
     elif(lpr == "Error"):
-        print "ERROR"
         return "Error"
     #If it did not process any of the above, return an error
     return "Error"
@@ -82,7 +80,6 @@ def create_savefile(num):
     return filename
 
 def license_read(filenames=[]):
-    print "IN LICENSE_READ"
     alpr = None
     #tell alpr which country license plate to use and where to find the openalpr.conf file and the
     #runtime_data folder
