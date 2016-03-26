@@ -70,9 +70,9 @@ Note: Ensure that "SECRET_KEY" inside both the config file matches.
 	- On the raspberry pi, we will start the database instance first.
 	- mongod --dbpath data --smallfiles --auth
 	- After starting the MongoDB instance, we will now create our database.
-	--* **python dbscripts.py**
+		- **python dbscripts.py**
 	- Once we have created our database, we can now start our flask application
-	- **sudo python app.py**
+		- **sudo python app.py**
 
 2. **Laptop/Desktop Server**
 	- Ensure that the necessary changes have been made to the configuration file before running the program
