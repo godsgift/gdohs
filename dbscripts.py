@@ -2,10 +2,13 @@ from pymongo import *
 from config import DB_Name, DB_User, DB_Pass
 
 client = MongoClient()
+#To run db
+#mongod --dbpath data --smallfiles -- auth
 
 #Start up script to create the empty database with empty collections/tables
 def main():
 	db = client[DB_Name]
+	#Create user to connect to the database
 	db.add_user(DB_User, DB_Pass, roles=["readWrite"])
 	db.authenticate(DB_User, DB_Pass, source=DB_Name)
 	

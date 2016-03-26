@@ -13,7 +13,6 @@ import picamera.array
 import requests
 import numpy as np
 from threading import Lock, Thread
-from Queue import Queue, Empty
 from sense_hat import SenseHat
 from picamera.exc import *
 from forms import *
@@ -47,7 +46,7 @@ app.config['MAIL_USE_TLS'] = False
 app.config['MAIL_USE_SSL'] = True
 app.config['MAIL_USERNAME'] = Mail_User
 app.config['MAIL_PASSWORD'] = Mail_Pass
-#WTFORMS Settings
+
 app.secret_key = SECRET_KEY
 login_manager = LoginManager()
 login_manager.init_app(app)
@@ -57,17 +56,14 @@ mongo = PyMongo(app)
 bcrypt = Bcrypt(app)
 mail = Mail(app)
 
+#Global Variables
 rand_num = randint(0,200000)
-
 camera = None
 cameralock = Lock()
 stop_record = None
 user_email = None
 gd_open = None
 flock = False
-
-#Running db:
-#mongod --dbpath data
 
 ##########################################################################
 #
@@ -480,7 +476,7 @@ def addLicense():
 					#Hash the license
 					license_hash = bcrypt.generate_password_hash(license)
 
-					#Add/Update the new license plate at the end
+					#Update the new license plate at the end
 					mongo.db.license.update_one({"user_id": user_id}, {"$set": {'license': license_hash}})
 					flash("License plate updated")
 				else:
@@ -770,7 +766,6 @@ class MyMotionDetector(picamera.array.PiMotionAnalysis):
 		global stop_record
 		global user_email
 		
-		test = True
 		a = np.sqrt(
 		    np.square(a['x'].astype(np.float)) +
 		    np.square(a['y'].astype(np.float))
@@ -778,13 +773,11 @@ class MyMotionDetector(picamera.array.PiMotionAnalysis):
 	    # If there're more than 10 vectors with a magnitude greater
 	    # than 60, motion has been detected
 		if ((a > 60).sum() > 50):
-			print "MOTION"
 			#if the stop recording button has not been clicked yet,
 			#start taking pictures with the camera and send to
 			#the license plate reading server and email to client
 			if (stop_record is None):
 				start = time.time()
-				print "GOT TO HERE"
 				filenames=[]
 				try:
 				    #Take 5 pictures with different filenames (5 seconds)
@@ -795,11 +788,9 @@ class MyMotionDetector(picamera.array.PiMotionAnalysis):
 						camera.capture(filename, use_video_port=True)
 						time.sleep(1)
 				except (PiCameraRuntimeError, PiCameraError, PiCameraMMALError) as e:
-					print "Got error of some kind"
 					print e
 					return
 
-				print filenames
 				#Send pictures via email
 				self.email_image(user_email, filenames[0],filenames[1],filenames[2], filenames[3],filenames[4])
 				#Send images to the license plate reading server
@@ -882,8 +873,6 @@ class MyMotionDetector(picamera.array.PiMotionAnalysis):
 				return
 
 	def agdopen(self, flock):
-		print "IN AGDOPEN"
-		print flock
 		wait = True
 		#Check if force lock is True or False
 		#if its true, dont turn on LED
@@ -909,7 +898,7 @@ class Camera(object):
             Camera.thread = Thread(target=self.livestream)
             Camera.thread.start()
 
-            # wait until frames start to be available
+            #Wait until the frame is available
             while self.frame is None:
                 time.sleep(0)
 
@@ -956,53 +945,12 @@ def load_user(username):
 		_password = user_id["password"]
 	return User(_id, _username, _password)
 
-def create_savefile(save_location):
-	#if the requested filename is for a video, create the filename for video
-	#else if its image, create the filename for image
-	if (save_location == "video"):
-	    dateTime = time.strftime("%Y-%m-%d,%I%M%S")
-	    location = "videos/"
-	    filename = location + dateTime  + ".h264"
-	    return filename
-	elif (save_location == "image"):
-		dateTime = time.strftime("%Y-%m-%d,%I%M%S")
-		location = "motion-images/"
-		filename = location + dateTime  + ".jpeg"
-		return filename
-
 def generate_frames(camera):
     #Video streaming generator function
     while True:
         frame = camera.get_frame()
         yield (b'--frame\r\n'
                b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
-
-def checkWhitespace(word):
-	#Checks for all types of whitespaces including \t, \n, \f, \v
-	ws = re.search('[\s+]', word)
-	#True for no whitespace
-	checker = True
-	#If there is whitespace then set checker to false
-	if (ws):
-		checker = False
-	return checker
-
-def get_token(self, expiration=1800):
-	#Create token
-	s = Serializer(app.secret_key, expiration)
-	serializedToken = s.dumps(self)
-	return serializedToken
-
-def verify_token(token):
-	#Verifies token
-	s = Serializer(app.secret_key)
-	try:
-		data = s.loads(token)
-	except SignatureExpired:
-		return "Signature Expired"
-	except Badsignature:
-		return "Bad Signature"
-	return data
 
 def reset_pass_email(remail, firstname, lastname, link):
 	#Send reset password email
@@ -1017,20 +965,6 @@ def reset_pass_email(remail, firstname, lastname, link):
 
 	mail.send(msg)
 	return
-
-def username_to_userid(username):
-	#Get the userid of the user from their username
-	find_user = mongo.db.user.find_one({"username": username})
-	user_id = find_user["_id"]
-	return user_id
-
-def string_split_res(resolution):
-	#get the width and height of the resolution
-	changed_res = str(resolution)
-	split = changed_res.split("x")
-	width = int(split[0])
-	height = int(split[1])
-	return width, height
 
 def gd_sense():
 	#Turns on the sensehat(LED lights portion)
@@ -1062,6 +996,63 @@ def gd_sense():
 	sense.clear()
 	return
 
+def create_savefile(save_location):
+	#if the requested filename is for a video, create the filename for video
+	#else if its image, create the filename for image
+	if (save_location == "video"):
+	    dateTime = time.strftime("%Y-%m-%d,%I%M%S")
+	    location = "videos/"
+	    filename = location + dateTime  + ".h264"
+	    return filename
+	elif (save_location == "image"):
+		dateTime = time.strftime("%Y-%m-%d,%I%M%S")
+		location = "motion-images/"
+		filename = location + dateTime  + ".jpeg"
+		return filename
+	else:
+		raise Exception("Incorrect save location")
+
+def checkWhitespace(word):
+	#Checks for all types of whitespaces including \t, \n, \f, \v
+	ws = re.search('[\s+]', word)
+	#True for no whitespace
+	checker = True
+	#If there is whitespace then set checker to false
+	if (ws):
+		checker = False
+	return checker
+
+def get_token(self, expiration=1800):
+	#Create token
+	s = Serializer(app.secret_key, expiration)
+	serializedToken = s.dumps(self)
+	return serializedToken
+
+def verify_token(token):
+	#Verifies token
+	s = Serializer(app.secret_key)
+	try:
+		data = s.loads(token)
+	except SignatureExpired:
+		return "Signature Expired"
+	except Badsignature:
+		return "Bad Signature"
+	return data
+
+def username_to_userid(username):
+	#Get the userid of the user from their username
+	find_user = mongo.db.user.find_one({"username": username})
+	user_id = find_user["_id"]
+	return user_id
+
+def string_split_res(resolution):
+	#get the width and height of the resolution
+	changed_res = str(resolution)
+	split = changed_res.split("x")
+	width = int(split[0])
+	height = int(split[1])
+	return width, height
+
 def delete_images():
 	#Deletes all the images captured by the motion detector
 	folder = "motion-images"
@@ -1071,7 +1062,7 @@ def delete_images():
 			os.remove(folder+"/"+image)
 		return
 	else:
-		return "EMPTY"
+		raise OSError("Empty")
 
 if __name__ == "__main__":
 	app.run(debug=True, host='0.0.0.0', threaded=True)
