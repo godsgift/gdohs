@@ -7,7 +7,8 @@ A proof-of-concept project for a home surveillance camera with an automatic gara
 
 The project is to build a web application that allows the user to live stream, record, and turn on the LED lights.
 
-The web application includes:
+**The web application includes:**
+
 1. Signup
 2. Login/Logout
 3. Forget Password/Reset Password
@@ -77,4 +78,4 @@ Note: Ensure that "SECRET_KEY" inside both the config file matches.
 2. **Laptop/Desktop Server**
 	- Ensure that the necessary changes have been made to the configuration file before running the program
 	- We will only need to run the license plate reading server in this machine
-	- **sudo python lprserver.py**
+		- **sudo python lprserver.py**
