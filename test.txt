@@ -1,0 +1,105 @@
+For the testing document
+
+1. Index page render
+2. Login
+	- Correct user/pass
+	- Incorrect user/pass
+3. Sign up page render
+4. Signup Account
+	- There are no whitespaces
+	- Unique Username
+	- Unique Email
+	- Password in Database is hashed
+	- All fields are required
+	- Correct Email Address
+	- Show Database with added user account
+5. Forgot Password page render
+6. Forgot Password
+	- There are no whitespaces in the email
+	- Correct email address
+	- Create token link
+	- Add to resetpassword collection
+	- Send email to the user
+7. Reset password page render
+	- Correct Token
+	- signature expired error
+	- bad token error
+	- show page if no error
+8. Reset password
+	- validation for the password field
+	- No whitespaces
+	- compare the previous password
+	- hash the new password
+	- update the database
+9. Unauthorized access page render
+10. Login home page render
+11. livestream home page render
+12. video stream image
+13. Download video page render
+	- show any available videos
+14. download videos link clicked
+	- download the video if it exist
+15. delete video link clicked
+	- delete the video if it exists
+16. Settings page render
+	- Settings form
+	- show current user settings
+17. Settings
+	- validate form
+	- brightness >= 0 and <= 100
+	- resolution is [320x240, 640x480, 1280x1024, 1920x1080]
+	- hflip is true or false
+	- vflip is true or false
+	- add to database
+	- update database if changes
+18. Profile page render
+	- show the 3 forms
+	- show firstname
+	- show lastname
+	- show email
+	- show force lock
+
+	18.A. Add license
+		- validate form
+		- no whitespace for license
+		- hashed license plate in database
+		- changing license plate and still hashed in db
+	18.B. ForceLock
+		- validate form
+		- Update flock to true or false in db
+	18.C. MGDOPEN
+		- validate form
+		- turn on LED depending on gd_open global var
+		- if its running dont turn on
+19. Change Password page render
+	- show page with form
+20. Change Password
+	- validate form
+	- the new password must match
+	- no whitespaces for all fields
+	- update the new password
+	- password must be hashed
+21. Record Video Page render
+	- show page with the 2 form
+22. Start Record
+	- validate form
+	- use default settings if no user settings was defined
+	- use user settings if it is defined
+	22.A. Motion Detection
+		- If threshold is more than 50 motion is detected
+		- check if stop recording button has been clicked
+		- create 5 images over 5 seconds
+		- send those 5 images to user via email
+		- send 5 images to lpr server
+		- turn on LED if license plate is correct
+23. Stop Record
+	- validate form
+	- stop recording
+	- delete all images in motion-images folder
+24. Logout
+	- log user out
+	- show index page
+
+
+
+
