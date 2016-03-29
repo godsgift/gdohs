@@ -112,6 +112,7 @@ def login():
 	else:
 		flash("Incorrect username or password.")
 		return render_template("index.html", form=form)
+	return render_template("index.html", form=form)
 
 @app.route("/showSignup")
 def showSignup():
@@ -208,10 +209,9 @@ def forgotPassword():
 						#Send email with the link to their reset password to the user
 						reset_pass_email(get_email, get_fname, get_lname, link)
 				else:
-					flash("Password reset has been sent to " + _email)
+					flash("Password reset link has been sent to " + _email)
 					return render_template("/forgotpassword.html", form=ForgotPassword())
 			else:
-				print "GOT HERE"
 				return render_template("/forgotpassword.html", form=form)
 		else:
 			return render_template("/forgotpassword.html", form=form)
@@ -303,8 +303,24 @@ def livestream():
 @app.route("/videostream")
 @login_required
 def videostream():
-	return Response(generate_frames(Camera()),
-                    mimetype='multipart/x-mixed-replace; boundary=frame')
+	username = current_user.username
+	find_user = mongo.db.user.find_one({"username": username})
+	user_id = find_user["_id"]
+	#get camera settings set by that user from the database
+	check_user = mongo.db.settings.find_one({"user_id": user_id})
+	#Use default Settings
+	if (check_user is None):
+		brightness = 50
+		hflip = False
+		vflip = False
+		return Response(generate_frames(Camera(), brightness, hflip, vflip),
+	                    mimetype='multipart/x-mixed-replace; boundary=frame')
+	else:
+		brightness = check_user["brightness"]
+		hflip = check_user["hflip"]
+		vflip = check_user["vflip"]
+		return Response(generate_frames(Camera(), brightness, hflip, vflip),
+	                    mimetype='multipart/x-mixed-replace; boundary=frame')
 
 @app.route("/showDownloadvideos")
 @login_required
@@ -892,26 +908,29 @@ class Camera(object):
     frame = None
     start = 0
 
-    def create_thread(self):
+    def create_thread(self, brightness, hflip, vflip):
         if Camera.thread is None:
             #create the thread
-            Camera.thread = Thread(target=self.livestream)
+            Camera.thread = Thread(target=self.livestream, args=[brightness, hflip, vflip])
             Camera.thread.start()
 
             #Wait until the frame is available
             while self.frame is None:
                 time.sleep(0)
 
-    def get_frame(self):
+    def get_frame(self, brightness, hflip, vflip):
         Camera.start = time.time()
-        self.create_thread()
+        self.create_thread(brightness, hflip, vflip)
         return self.frame
 
     @classmethod
-    def livestream(cls):
+    def livestream(cls, brightness, hflip, vflip):
         with picamera.PiCamera() as camera:
             # camera setup
             camera.resolution = (640, 480)
+            camera.brightness = brightness
+            camera.hflip = hflip
+            camera.vflip = vflip
             stream = io.BytesIO()
             for foo in camera.capture_continuous(stream, 'jpeg',
                                                  use_video_port=True):
@@ -945,10 +964,10 @@ def load_user(username):
 		_password = user_id["password"]
 	return User(_id, _username, _password)
 
-def generate_frames(camera):
+def generate_frames(camera, brightness, hflip, vflip):
     #Video streaming generator function
     while True:
-        frame = camera.get_frame()
+        frame = camera.get_frame(brightness, hflip, vflip)
         yield (b'--frame\r\n'
                b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
 
