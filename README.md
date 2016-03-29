@@ -68,8 +68,13 @@ Note: Ensure that "SECRET_KEY" inside both the config file matches.
 
 1. **Raspberry Pi**
 	- Ensure that the necessary changes have been made to the configuration file before running the program.
+	- Ensure that the necessary folders are created:
+		- motion-images
+		- videos
+		- data
 	- On the raspberry pi, we will start the database instance first.
 	- mongod --dbpath data --smallfiles --auth
+		- "data" is the folder where we will store our database 
 	- After starting the MongoDB instance, we will now create our database.
 		- **python dbscripts.py**
 	- Once we have created our database, we can now start our flask application
@@ -77,5 +82,8 @@ Note: Ensure that "SECRET_KEY" inside both the config file matches.
 
 2. **Laptop/Desktop Server**
 	- Ensure that the necessary changes have been made to the configuration file before running the program
+	- Ensure that the necessar folders are created:
+		- motion-images
+		- videos
 	- We will only need to run the license plate reading server in this machine
 		- **sudo python lprserver.py**
