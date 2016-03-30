@@ -586,16 +586,17 @@ def mgdopen():
 				if (gd_open is None):
 					gd_open = True
 					if (flock is True or flock is False):
-						wait = True
-						while wait:
-							gd_sense()
-							gd_open = None
-							wait = None
+						gd_sense()
+						gd_open = None
 					else:
 						return redirect(url_for("showProfile"))
 				elif(gd_open is True):
 					flash ("LED lights are currently on")
 					return redirect(url_for("showProfile"))
+			else:
+				redirect(url_for("showProfile"))
+		else:
+			redirect(url_for("showProfile"))
 	return redirect(url_for("showProfile"))
 
 @app.route("/showChangePassword")
@@ -1013,7 +1014,7 @@ def gd_sense():
 		time.sleep(1)
 	sense.show_message("Closed", text_colour=[255, 0, 0], scroll_speed=0.03)
 	sense.clear()
-	return
+	
 
 def create_savefile(save_location):
 	#if the requested filename is for a video, create the filename for video
