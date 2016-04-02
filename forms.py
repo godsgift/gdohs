@@ -56,7 +56,7 @@ class CamSettings(Form):
 		NumberRange(min=0, max=100, message="Please choose a number between 0 and 100")])
 
 	resolution = SelectField("Video/Image Resolution: ", choices=[("320x240", "320 x 240"), ("640x480", "640 x 480"), 
-		("1280x1024", "1280 x 1024"), ("1920x1080", "1920 x 1080")], default="640x480", validators=[(Required("Required"))])
+		("800x600", "800 x 600")], default="640x480", validators=[(Required("Required"))])
 
 	hflip = BooleanField("Horizontal Flip: ", default=False)
 

@@ -387,8 +387,7 @@ def settings():
 			_vflip = form.vflip.data
 			#check for each field in form
 			if (_brightness >= 0 and _brightness <= 100):
-				if (_resolution == "320x240" or _resolution == "640x480" or _resolution == "1280x1024" 
-					or _resolution == "1920x1080"):
+				if (_resolution == "320x240" or _resolution == "640x480" or _resolution == "800x600"):
 					if (_hflip == True or _hflip == False):
 						if (_vflip == True or _vflip == False):
 							#Find the current logged in user
@@ -814,8 +813,10 @@ class MyMotionDetector(picamera.array.PiMotionAnalysis):
 				self.send_lpr(LPR_Server, filenames[0],filenames[1],filenames[2],
 						filenames[3],filenames[4])
 
+				# time.sleep(5)
 				end = time.time()
 				print (end-start)
+				time.sleep(3)
 
 			elif (stop_record is True):
 				time.sleep(20)
@@ -1082,7 +1083,8 @@ def delete_images():
 			os.remove(folder+"/"+image)
 		return
 	else:
-		raise OSError("Empty")
+		print "Empty"
+		return
 
 if __name__ == "__main__":
 	app.run(debug=True, host='0.0.0.0', threaded=True)
