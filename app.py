@@ -1,4 +1,23 @@
 ##########################################################################
+# SOURCE FILE:	app.py
+#
+# AUTHOR: 		ELTON SIA
+#
+# PROGRAM:		Web application for the automatic garage door opener and 
+#				home surveillance. 
+#
+# DATE:			April 07, 2016
+#
+# USAGE:		Ensure that the values in the config file have been
+#				changed. The license plate reading server (lprserver.py)
+#				is up and running. The mongodb instance is running as 
+#				well.
+#			
+#				sudo python app.py
+#
+##########################################################################
+
+##########################################################################
 #
 #								 IMPORTS
 #
@@ -34,7 +53,7 @@ from flask.ext.login import LoginManager, UserMixin, login_required, login_user,
 
 app = Flask(__name__)
 
-#Mongodb Settings
+#Mongodb Settings from config file
 app.config['MONGO_DBNAME'] = DB_Name
 app.config['MONGO_USERNAME'] = DB_User
 app.config['MONGO_PASSWORD'] = DB_Pass
@@ -44,6 +63,7 @@ app.config['MAIL_SERVER'] = 'smtp.gmail.com'
 app.config['MAIL_PORT'] = 465
 app.config['MAIL_USE_TLS'] = False
 app.config['MAIL_USE_SSL'] = True
+#User and password taken from config file
 app.config['MAIL_USERNAME'] = Mail_User
 app.config['MAIL_PASSWORD'] = Mail_Pass
 
@@ -71,12 +91,49 @@ flock = False
 #
 ##########################################################################
 
+##########################################################################
+# Function Name: index()
+#
+# Parameters: None
+#
+# Posted Data: None
+#
+# Return Values:
+#	HTTP - Web page with a login form
+#
+# Description:
+#	Sends the user to the login page with an empty login form.
+#
+##########################################################################
 @app.route("/")
 def index():
 	#Redirect to home page
 	form = Login()
 	return render_template("index.html", form=form)
 
+##########################################################################
+# Function Name: login()
+#
+# Parameters: None
+#
+# Posted Data:
+#	username
+#	password
+#
+# Return Values:
+#	HTTP - Web page for logged in home page.
+#
+#	HTTP - Web page for incorrect username or password
+#	     - Redirects to index() function
+#
+# Description:
+#	Takes the username and password entered by the user and is checked in
+#	the database for a match. If the correct username and password was 
+#	given, then the user gets logged in the web application. However,
+#	if the username or the password given is incorrect, they are 
+#	redirected to the index() home page with an error message.
+#
+##########################################################################
 @app.route("/login", methods=["GET", "POST"])
 def login():
 	if (request.method == 'POST'):
@@ -114,12 +171,54 @@ def login():
 		return render_template("index.html", form=form)
 	return render_template("index.html", form=form)
 
+##########################################################################
+# Function Name: showSignup()
+#
+# Parameters: None
+#
+# Posted Data: None
+#
+# Return Value:
+#	HTTP - Web page with empty sign-up form
+#
+# Description:
+#	Sends the user to the sign up web page with an empty form.
+#
+##########################################################################
 @app.route("/showSignup")
 def showSignup():
 	form = SignUp()
 	#Redirect to the sign up page with the form
 	return render_template("signup.html", form=form)
 
+##########################################################################
+# Function Name: signUp()
+#
+# Parameters: None
+#
+# Posted Data:
+#	username
+#	password
+#	email
+#	first name
+#	last name
+#
+# Return Value:
+#	HTTP - sends user to the sign-up successful page
+#	HTTP - sends user back to the sign-up page with some form data 
+#		   completed
+#
+# Description:
+#	Takes the username, password, email, firstname, and lastname data
+#	entered by the user and do submission validation, whitespace
+#	validation, unique username validation, and unique email validation.
+#	When the data passes all the validation, then they will be added to
+#	the database. If it fails any of the validation, they will be
+#	redirected back to the sign-up page with the correct error message.
+#	The password is hashed and salted to ensure that it will be harder
+#	to crack.
+#
+##########################################################################
 @app.route("/signUp", methods=['GET', 'POST'])
 def signUp():
 	if (request.method == 'POST'):
@@ -166,12 +265,52 @@ def signUp():
 			return render_template('signup.html', form=form)
 	return render_template('signup.html', form=SignUp())
 
+##########################################################################
+# Function Name: showForgotPassword()
+#
+# Parameters: None
+#
+# Posted Data: None
+#
+# Return Value:
+#	HTTP - renders the web page for forgot password page
+#
+# Description:
+#	Renders the show forgot password page for the user with an empty form.
+#
+##########################################################################
 @app.route("/showForgotPassword")
 def showForgotPassword():
 	form = ForgotPassword()
 	#Redirect to the forgot password page
 	return render_template("forgotpassword.html", form=form)
 
+##########################################################################
+# Function Name: forgotPassword()
+#
+# Parameters: None
+#
+# Posted Data:
+#	email
+#
+# Return Value:
+#	HTTP - Sends the user back to the forgot password page.
+#
+# Description:
+#	Takes the email entered by the user and do submission validation. if
+#	the validation passes, Checks if password exist, if it does gets the 
+#	id, firstname and lastname for the user with that email. Then creates
+#	a token and creates a link with that token for the user. Then checks
+#	if the user already requested a previous forgot password link and 
+#	deletes it if it exist in the database. Once it has been deleted,
+#	adds the user into the database and sends an email to the user with 
+#	the link to the reset password page. If the user puts in incorrect
+#	email (which means that the email does not exist in the database),
+#	a message appears that the email was sent to the specified email.
+#	This is to ensure that people won't know which emails exist in the
+#	database and which email do not exist.
+#
+##########################################################################
 @app.route("/forgotPassword", methods=['GET', 'POST'])
 def forgotPassword():
 	if (request.method == 'POST'):
@@ -196,6 +335,17 @@ def forgotPassword():
 					link = server + "/showResetPassword/" + token
 					if mongo.db.resetpassword.find_one({"user_id": get_user_id}):
 						mongo.db.resetpassword.delete_one({"user_id": get_user_id})
+						#Add onto a temporary document in the database
+						result = mongo.db.resetpassword.insert_one(
+							{
+								"user_id": get_user_id,
+								"email": get_email,
+								"random_number": get_num
+							}
+						)
+						flash("Password reset link has been sent to " + _email)
+						#Send email with the link to their reset password to the user
+						reset_pass_email(get_email, get_fname, get_lname, link)
 					else:
 						#Add onto a temporary document in the database
 						result = mongo.db.resetpassword.insert_one(
@@ -217,7 +367,31 @@ def forgotPassword():
 			return render_template("/forgotpassword.html", form=form)
 	return render_template("/forgotpassword.html", form=ForgotPassword())
 
-
+##########################################################################
+# Function Name: showResetPassword()
+#
+# Parameters: token
+#
+# Posted Data:
+#	None
+#
+# Return Value:
+#	HTTP - Renders message page with error message
+#	HTTP - Renders reset password page.
+#
+# Description:
+#	First checks if the token in the URL is correct(verifies it by 
+#	decrypting). If the verified token is "Signature Expired", send
+#	to the error message page with that error. If the verified token is
+#	"Bad Signature", send the user to the error message page with that 
+#	error. If the verified token is correct and is has not expired,
+#	checks the database if the decrypted token matches with any document.
+#	If it matches with a document, get the user_id and based on that
+#	user_id get the username. Add the username into a session to be used
+#	later on when the user clicks the reset password button. Flashes a 
+#	message to the user to allow them to change their password.
+#
+##########################################################################
 @app.route("/showResetPassword/<token>")
 def showResetPassword(token):
 	verified_token = verify_token(token)
@@ -245,6 +419,32 @@ def showResetPassword(token):
 		return render_template("newpassword.html", form=form)
 	return render_template("newpassword.html", form=form)
 
+##########################################################################
+# Function Name: resetPassword()
+#
+# Parameters: None
+#
+# Posted Data:
+#	password
+#	confirmpassword
+#
+# Return Value:
+#	HTTP - Renders to success change password page
+#	HTTP - Renders to the reset password page
+#
+# Description:
+#	First grabs the user from the session, and grab the user_id based
+#	of the username. Takes the password and confirm password entered by
+#	the user and do submission validation as well as makign sure
+#	that the password and the confirm password fields matches with each
+#	other. If it matches, hash and salt that password and set the users
+#	password to the new password. Destroy the username session after the
+#	password has been changed and delete the user from the reset password
+#	database. After a success reset password, the user is sent to the 
+#	success reset password page. If there are any errors from the 
+#	validation, the user gets sent back to the reset password page. 
+#
+##########################################################################
 @app.route("/resetPassword", methods=['GET', 'POST'])
 def resetPassword():
 	#Grab the user from session
@@ -279,7 +479,21 @@ def resetPassword():
 		flash("Hello " + _user + ". Please enter your new password")
 	return render_template("newpassword.html", form=form)
 
-#Sends to this page only if user is trying to access page that requires to be logged in
+##########################################################################
+# Function Name: unauthorized_handler():
+#
+# Parameters: None
+#
+# Posted Data: None
+#	
+# Return Value:
+#	HTTP - Renders the unauthorized page.
+#
+# Description:
+#	This page is only rendered when the user tries to access a page that
+#	requires someone to be logged in.
+#
+##########################################################################
 @login_manager.unauthorized_handler
 def unauthorized_handler():
 	flash("Must be logged in to view this page.")
@@ -290,16 +504,61 @@ def unauthorized_handler():
 #							LOGGED IN FUNCTIONS
 #
 ##########################################################################
+
+##########################################################################
+# Function Name: home()
+#
+# Parameters: None
+#
+# Posted Data: None
+#
+# Return Value:
+#	HTTP - Renders the logged in home page
+#
+# Description:
+#	Renders the home page for users that are logged in.
+#
+##########################################################################
 @app.route("/home")
 @login_required
 def home():
 	return render_template("home.html")
 
+##########################################################################
+# Function Name: livestream()
+#
+# Parameters: None
+#
+# Posted Data: None
+#
+# Return Value:
+#	HTTP - Renders the live stream page
+#
+# Description:
+#	Renders the live stream page for the user
+#
+##########################################################################
 @app.route("/livestream")
 @login_required
 def livestream():
 	return render_template("live-stream.html")
 
+##########################################################################
+# Function Name: videostream()
+#
+# Parameters: None
+#
+# Posted Data: None
+#
+# Return Value:
+#	The video feed from the camera
+#
+# Description:
+#	Grab the current logged in user and get their camera settings.
+#	If they have a specified camera settings, use that settings when the
+#	camera starts up. If not, use a default settings specified.
+#
+##########################################################################
 @app.route("/videostream")
 @login_required
 def videostream():
@@ -322,6 +581,24 @@ def videostream():
 		return Response(generate_frames(Camera(), brightness, hflip, vflip),
 	                    mimetype='multipart/x-mixed-replace; boundary=frame')
 
+##########################################################################
+# Function Name: showDownloadVideos()
+#
+# Parameters: None
+#
+# Posted Data: None
+#
+# Return Value:
+#	HTTP - Renders the download page for the user with the videos from the
+#	raspberry pi system.
+#
+# Description:
+#	Grabs the list of videos that are currently in the videos folder.
+#	Note that these are the recorded videos by the user. If videos exist,
+#	show it to the user. If there are no videos, then flash a message
+#	that to let the user know that there are no videos in the folder.
+#
+##########################################################################
 @app.route("/showDownloadvideos")
 @login_required
 def showDownloadVideos():
@@ -334,6 +611,22 @@ def showDownloadVideos():
 		return render_template("video.html", videos=videos, count=num_vid)
 	return render_template("video.html", videos=videos, count=num_vid)
 
+##########################################################################
+# Function Name: downloadvideos()
+#
+# Parameters: filename
+#
+# Posted Data: None
+#
+# Return Value:
+#	HTTP - Renders the download videos page
+#
+# Description:
+#	When the user clicks the download videos link, the user is presented
+#	to download that video. Once they have finished downloading the 
+#	video, they are redirected to the download videos page.
+#
+##########################################################################
 @app.route("/downloadvideos/<filename>")
 @login_required
 def downloadvideos(filename):
@@ -343,6 +636,22 @@ def downloadvideos(filename):
 			return send_from_directory('videos', video, as_attachment=True)
 	return redirect(url_for("showDownloadVideos"))
 
+##########################################################################
+# Function Name: deletevideos()
+#
+# Parameters: filename
+#
+# Posted Data: None
+#
+# Return Value:
+#	HTTP - Renders the download video page
+#
+# Description:
+#	When the user clicks the delete videos link, the video gets deleted 
+#	from the folder. Once the user clicks the videos, the user gets 
+#	redirected to the download videos page.
+#
+##########################################################################
 @app.route("/deletevideos/<filename>")
 @login_required
 def deletevideos(filename):
@@ -353,6 +662,23 @@ def deletevideos(filename):
 			os.remove(folder+"/"+filename)
 	return redirect(url_for("showDownloadVideos"))
 
+##########################################################################
+# Function Name: showSettings()
+#
+# Parameters: None
+#
+# Posted Data: None
+#	
+# Return Value:
+#	HTTP - Renders the settings page
+#
+# Description:
+#	Renders the settings page of the user. First checks the database if 
+#	the user has a camera settings specified. If they do, get it and 
+#	shows those settings for the user when the page is rendered. If not, 
+#	then just show the settings page without the user settings.
+#
+##########################################################################
 @app.route("/showSettings")
 @login_required
 def showSettings():
@@ -374,6 +700,33 @@ def showSettings():
 		return render_template("settings.html", form=form)
 	return render_template("settings.html", form=form)
 
+##########################################################################
+# Function Name: settings()
+#
+# Parameters: None
+#
+# Posted Data:
+#	brightness
+#	resolution
+#	horizontal flip
+#	vertical flip
+#
+# Return Value:
+#	HTTP - Renders the settings page
+#
+# Description:
+#	Takes the brightness, resolution, hflip, and vflip entered by the 
+#	user and do submission validation as well as back-end checks for each
+#	field in the form. If the validations are successful, first get the
+#	current logged in user and get their user_id. Check the settings
+#	collection from the database and check if said user exist. If user
+#	does not exist, then insert the settings that the user had just
+#	specified. If the user already exists in the setting collection, then
+#	update the current settings to the new settings specified by the user.
+#	If the validations are unsuccessful, then redirect the user to the 
+#	settings page with the appropriate error message.
+#
+##########################################################################
 @app.route("/settings", methods=['GET', 'POST'])
 @login_required
 def settings():
@@ -445,6 +798,23 @@ def settings():
 		return redirect(url_for("showSettings"))
 	return redirect(url_for("showSettings"))
 
+##########################################################################
+# Function Name: showProfile()
+#
+# Parameters: None
+#
+# Posted Data: None
+#	
+# Return Value:
+#	HTTP - Render the profile page with the license plate form, force
+#			lock form, and the garage form.
+#
+# Description:
+#	Get the current logged in user and get their firstname, lastname,
+#	email, and their force lock settings. Show the 3 forms and the user
+#	information when the page is rendered.
+#
+##########################################################################
 @app.route("/showProfile")
 @login_required
 def showProfile():
@@ -462,6 +832,34 @@ def showProfile():
 	return render_template("profile.html", form=form, forceform=forceform, 
 		fname=user_fname, lname=user_lname, email=user_email, flock=user_flock, garageform=garageform)
 
+##########################################################################
+# Function Name: addLicense()
+#
+# Parameters: None
+#
+# Posted Data:
+#	license
+#
+# Return Value:
+#	HTTP - Renders the profile page with the 3 forms
+#
+# Description:
+#	First grab the current logged in user so that when the add license
+#	button is clicked, it will render the page with the correct 
+#	information. On top of that, we get the 2 other forms that are 
+#	included in the profile page. Once the user enters their license
+#	plate, we do submission validation on the data entered. If the
+#	validation passes, we then do a whitespace validation. If all 
+#	validation passes, we first check if the user already has an existing
+#	license plate, and if they do, we update it and set it to the new
+#	license plate. We first hash and salt the license plate as well before
+#	updating or inserting the license plate. If the user does not have a
+#	license plate in the database, we insert a new license plate for the
+#	user. If it was successful, a message pops up saying that the license
+#	plate has been updated. Otherwise, an appropriate error message pops 
+#	up.
+#
+##########################################################################
 @app.route("/addLicense", methods=['GET', 'POST'])
 @login_required
 def addLicense():
@@ -515,6 +913,31 @@ def addLicense():
 		return redirect(url_for("showProfile"))
 	return redirect(url_for("showProfile"))
 
+##########################################################################
+# Function Name: forcelock()
+#
+# Parameters: None
+#
+# Posted Data:
+#	flock [True, False]
+#
+# Return Value:
+#	HTTP - Renders profile page with all 3 forms.
+#
+# Description:
+#	First grab the current logged in users to show the information
+#	in the profile page. The 2 other forms are also included to be rendered
+#	in the profile page. We also have a global "flock" that is needed to
+#	change the force lock between True and False. When the user clicks the
+#	button, it checks if the force lock is True or False. If the force lock
+#	is True, then change it to False, for global use, and then update the
+#	force lock in the database to False as well. If the force lock is
+#	False, then change it to True, for global use, and then update the
+#	force lock in the database to True as well. Whenever they click the
+#	force lock button, they are rendered back to the profile page with the
+#	user information as well as the correct force lock settings.
+#
+##########################################################################
 @app.route("/forcelock", methods=['GET', 'POST'])
 @login_required
 def forcelock():
@@ -559,6 +982,30 @@ def forcelock():
 				fname=user_fname, lname=user_lname, email=user_email, flock=user_flock, garageform=garageform)
 	return redirect(url_for("showProfile"))
 
+##########################################################################
+# Function Name: mgdopen()
+#
+# Parameters: None
+#
+# Posted Data:
+#	gd_open [True, False]
+#
+# Return Value:
+#	HTTP - Renders the profile page with the 3 forms
+#
+# Description:
+#	Grabs the current logged in user and get the required information
+#	to be displayed in the profile page as well as the 2 other forms
+#	that are required to be displayed in the profile page. When the user
+#	clicks the button, the gd_open is changed to True, and ensures that
+#	even if the force lock is True or False, it turns on the LED lights.
+#	After the LED lights are done running, changes the gd_open to None and
+#	renders the profile page again. If the gd_open was already True, sends
+#	a message to the user to let them know that the LED lights are 
+#	currently running. Otherwise just render the profile page with the
+#	correct information.
+#
+##########################################################################
 @app.route("/manual", methods=['GET', 'POST'])
 @login_required
 def mgdopen():
@@ -598,12 +1045,48 @@ def mgdopen():
 			redirect(url_for("showProfile"))
 	return redirect(url_for("showProfile"))
 
+##########################################################################
+# Function Name: showChangePassword
+#
+# Parameters: None
+#
+# Posted Data: None
+#
+# Return Value:
+#	HTTP - Render the change password page
+#
+# Description:
+#	Renders the change password page with the change password form.
+#
+##########################################################################
 @app.route("/showChangePassword")
 @login_required
 def showChangePassword():
 	form = ChangePassword()
 	return render_template("changepassword.html", form=form)
 
+##########################################################################
+# Function Name: changePassword()
+#
+# Parameters: None
+#
+# Posted Data:
+#	current_password
+#	new_password
+#	match_password
+#
+# Return Value:
+#	HTTP - Renders the change password page
+#
+# Description:
+#	Takes the current_password, new_password, and match_password entered
+#	by the user and do submission validation, check whitespace validation,
+#	current password matching validation, and the new password matching
+#	validation. When all the validation passes, the users password is 
+#	updated to the new password. Otherwise, they are sent back to the
+#	change password page.
+#
+##########################################################################
 @app.route("/changePassword", methods=['GET', 'POST'])
 @login_required
 def changePassword():
@@ -637,12 +1120,53 @@ def changePassword():
 			return render_template("changepassword.html", form=form)
 	return render_template("changepassword.html", form=form)
 
+##########################################################################
+# Function Name: showRecordvideos()
+#
+# Parameters: None
+#
+# Posted Data: None
+#
+# Return Value:
+#	HTTP - Renders the record videos page
+#
+# Description:
+#	Renders the record videos page with the recodring form.
+#
+##########################################################################
 @app.route("/showRecordvideos")
 @login_required
 def showRecordvideos():
 	form = Recording()
 	return render_template("recordvideos.html", form=form)
 
+##########################################################################
+# Function Name: startrecord()
+#
+# Parameters: None
+#
+# Posted Data:
+#	start
+#	stop
+#
+# Return Value:
+#	HTTP - Renders the record videos page
+#
+# Description:
+#	If the user clicks the start recording button, a submission validation
+#	is done to ensure that the start button is clicked. If the camera is
+#	currently in use, send a message to the web page saying it us
+#	currently in use. If camera is not in use, grab the username of the
+#	current logged in user and get their camera settigns from the database.
+#	If they have no camera settings specified, set the global camera as
+#	the picamera. and start recording with the default settings. If they
+#	have camera settings specified, set the global camera as the picamera
+#	and start recording with the camera settings. The global user_email
+#	is set when the user_id was gotten so that it could be used later.
+#	Once the recording has started, flash a message to the web page
+#	stating when the recording started.
+#
+##########################################################################
 @app.route("/startrecord", methods=['GET', 'POST'])
 @login_required
 def startrecord():
@@ -695,7 +1219,7 @@ def startrecord():
 						#create filename
 						filename = create_savefile("video")
 						camera.start_recording(filename, motion_output=MyMotionDetector(camera))
-						flash("Started recording on " + time.strftime("%Y-%m-%d %I:%M:%S") + ".")
+						flash("Started recording on " + time.strftime("%Y-%m-%d %I:%M:%S") + " with users' camera settings.")
 						return render_template("recordvideos.html", form=form)
 			except (PiCameraMMALError, PiCameraError, PiCameraAlreadyRecording):
 				flash("Camera already in use. Please ensure that there is no one in the livestream page or stop the recording")
@@ -704,6 +1228,32 @@ def startrecord():
 			return render_template("recordvideos.html", form=form)
 	return render_template("recordvideos.html", form=form)
 
+##########################################################################
+# Function Name: stoprecord()
+#
+# Parameters: None
+#
+# Posted Data:
+#	start
+#	stop
+#
+# Return Value:
+#	HTTP - Renders the record video page
+#
+# Description:
+#	If the user clicks the stop recording button, do a submission
+#	validation ensuring that the stop button was clicked. Set the global
+#	stop_record to True. Checks if the global camera is None, and if it
+#	is, flash a message stating that the camera is not in use. If camera
+#	is not None, record for 20 seconds more then stop recoding and close
+#	the camera instance. Flash a message stating that the camera had
+#	stopped recording and show the current time. Set the global camera and
+#	global user_email to None. If there are any errors, print them. Then
+#	calls the delete_images() function and deletes all the images in the
+#	motion-images folder. Once all of the above are done, renders the 
+#	record videos page with the appropriate messages.
+#
+##########################################################################
 @app.route("/stoprecord", methods=['GET', 'POST'])
 @login_required
 def stoprecord():
@@ -742,6 +1292,22 @@ def stoprecord():
 			return render_template("recordvideos.html", form=form)
 	return render_template("recordvideos.html", form=form)
 
+##########################################################################
+# Function Name: logout()
+#
+# Parameters: None
+#
+# Posted Data: None
+#
+# Return Value:
+#	HTTP - Renders the home page for logged out users
+#
+# Description:
+#	When the user clicks the logout button, they are logged out from the 
+#	web application and are then redirected to the home page for logged
+#	out users.
+#
+##########################################################################
 @app.route("/logout")
 @login_required
 def logout():
@@ -755,29 +1321,186 @@ def logout():
 #
 ##########################################################################
 
+##########################################################################
+# Class Name: User()
+#
+# Function Names: __init__()
+#				  is_active()
+#				  is_authenticated()
+#				  is_anonymous()
+#				  get_id()
+#				  validate_login()
+#
+# Parameters: None
+#
+# Posted Data: None
+#
+# Return Value:
+#	Depending on the function called inside the class, will return
+#	the appropriate return message.
+#
+# Description:
+#	The User class is used in tandem with the login and logout function
+#	This is part of the flask-login library and is required for using it.
+#	The functions inside are required before using the flask-login
+#	library.
+#
+##########################################################################
 class User():
+
+	##########################################################################
+	# Function Name: __init__()
+	#
+	# Parameters: self, id, username, password
+	#
+	# Posted Data: None
+	#
+	# Return Value: None
+	#
+	# Description:
+	#	Sets the id, username, and password for the class.
+	#
+	##########################################################################
 	def __init__(self, id, username, password):
 		self.id = id
 		self.username = username
 		self.password = password
 
+	##########################################################################
+	# Function Name: is_active()
+	#
+	# Parameters: self
+	#
+	# Posted Data: None
+	#
+	# Return Value:
+	#	True
+	#
+	# Description:
+	#	Sets the the active to True if a user is logged in.
+	#
+	##########################################################################
 	def is_active(self):
 		return True
 
+	##########################################################################
+	# Function Name: is_authenticated()
+	#
+	# Parameters: self
+	#
+	# Posted Data: None
+	#
+	# Return Value:
+	#	True
+	#
+	# Description:
+	#	Sets the authenticated to True if the user has been authenticated.	
+	#
+	##########################################################################
 	def is_authenticated(self):
 		return True
 
+	##########################################################################
+	# Function Name: is_anonymous()
+	#
+	# Parameters: self
+	#
+	# Posted Data: None
+	#
+	# Return Value:
+	#	False
+	#
+	# Description:
+	#	Sets the anonimity to False. Note that this is always false because
+	#	the web application does not allow anonymous users.
+	#
+	##########################################################################
 	def is_anonymous(self):
 		return False
 
+	##########################################################################
+	# Function Name: get_id()
+	#
+	# Parameters: self
+	#
+	# Posted Data: None
+	#
+	# Return Value:
+	#	username
+	#
+	# Description:
+	#	Returns the username which will be added into the Flask session.
+	#
+	##########################################################################
 	def get_id(self):
 		return self.username
 
+	##########################################################################
+	# Function Name: validate_login()
+	#
+	# Parameters: pw_hash, password
+	#
+	# Posted Data: None
+	#
+	# Return Value:
+	#	Boolean - True/False
+	#
+	# Description:
+	#	Check the if the hashed and salted password matches for when the user
+	#	logs in. If it matches return True, if it doesn't return False.
+	#
+	##########################################################################
 	@staticmethod
 	def validate_login(pw_hash, password):
 		return bcrypt.check_password_hash(pw_hash, password)
 
+##########################################################################
+# Class Name: MyMotionDetector
+#
+# Function Names: analyse()
+#				  email_image()
+#				  send_email()
+#	 			  send_lpr()
+#				  send_request
+#				  agdopen
+#
+# Parameters: picamera.array.PiMotionAnalysis
+#
+# Posted Data: None
+#
+# Return Value: None
+#
+# Description:
+#	The camera motion detector class which was included in the picamera
+#	library.
+#
+##########################################################################
 class MyMotionDetector(picamera.array.PiMotionAnalysis):
+
+	##########################################################################
+	# Function Name: analyse()
+	#
+	# Parameters: self, a
+	#
+	# Posted Data: None
+	#
+	# Return Value: None
+	#
+	# Description:
+	#	Uses the numpy array to check if there are any changes in the 
+	#	3 dimensional array of motion vectors from the H.264 video encoder.
+	#	If there are more than 10 vectors with a magnitude greater than 60,
+	#	a motion has been detected. Once motion has been detected, if the
+	#	global stop_record is None, start a timer and capture 5 images with
+	#	different names in a 5 second time frame. Once the 5 images are saved,
+	#	call the email_image function with the 5 images and the global 
+	#	user_email to send it to the user and call the send_lpr function to 
+	#	send the 5 images to the license plate reading server. End the timer 
+	#	and print the timer. Wait 3 more seconds before going back 
+	#	to analyse mode. If the global stop_record is True, sleep for 20
+	#	seconds and set the stop_record to None.
+	#
+	##########################################################################
 	def analyse(self, a):
 		global stop_record
 		global user_email
@@ -823,6 +1546,23 @@ class MyMotionDetector(picamera.array.PiMotionAnalysis):
 				stop_record = None
 		return
 
+	##########################################################################
+	# Function Name: email_image()
+	#
+	# Parameters: self, remail, filename1, filename2, filename3, filename4,
+	#			  filename5
+	#
+	# Posted Data: None
+	#
+	# Return Value: None
+	#
+	# Description:
+	#	Sets the subject, body, sender, and the recipients of the email.
+	#	Attaches the 5 imaged that is passed from the global user_email.
+	#	Create a thread with the arguments [app, msg] and targets the 
+	#	send_email() function. Starts the thread.
+	#
+	##########################################################################
 	def email_image(self, remail, filename1, filename2, filename3, filename4, filename5):
 		subject = "Motion Detected"
 		body = "Attached are 5 images that were taken when your camera had detected a motion"
@@ -847,12 +1587,44 @@ class MyMotionDetector(picamera.array.PiMotionAnalysis):
 		thr.start()
 		return
 
+	##########################################################################
+	# Function Name: send_email()
+	#
+	# Parameters: self, app, msg
+	#
+	# Posted Data: None
+	#
+	# Return Value: None
+	#
+	# Description:
+	#	Sets the flask's app context to inside the thread and sends the email
+	#	with the "msg" that was created in the email_image() function.
+	#
+	##########################################################################
 	def send_email(self, app, msg):
 		with app.app_context():
 			mail.send(msg)
 
+	##########################################################################
+	# Function Name: send_lpr
+	#
+	# Parameters: self, lpr_server, filename1, filename2, filename3,
+	#			  filename4, filename5
+	#
+	# Posted Data: None
+	#
+	# Return Value: None
+	#
+	# Description:
+	#	Grabs the lpr_server from the config file to find out what the IP
+	#	address and port that the license plate reading server is using.
+	#	Creates an array for the image files that are going to be sent over
+	#	to the license plate reading server.
+	#	Create a thread with the arguments [app, image_irl, files] and 
+	#	targets the send_request function. Start the thread.
+	#
+	##########################################################################
 	def send_lpr(self, lpr_server, filename1, filename2, filename3, filename4, filename5):
-		wait = True
 		#Send images to the lpr server
 		image_url = "http://" + lpr_server + "/get_images"
 		files=[
@@ -868,6 +1640,32 @@ class MyMotionDetector(picamera.array.PiMotionAnalysis):
 		thr.start()
 		return 
 
+	##########################################################################
+	# Function Name: send_request()
+	#
+	# Parameters: self, app, image_url, files
+	#
+	# Posted Data: None
+	#
+	# Return Value: None
+	#
+	# Description:
+	#	Set flask's app context to here and do a request post to the license
+	#	plate reading server with the image files taken form the send_lpr
+	#	function. When the post comes back, we are expecting different 
+	#	messages however we are specifically looking for "Open" and "Error"
+	#	If the return value from the post request is "Open", set the global
+	#	gd_open to True and call the agdopen() function passing in the "flocl"
+	#	argument. Once it is done running the agdopen() function, we set the
+	#	global gd_open to None. If the global gd_open was True, print to
+	#	the terminal that the garage door is already opening. If the return
+	#	value from the post request was an "Error", print "Error" and return
+	#	to the motion detection. If the return value was neither "Open" or
+	#	"Error", print "Probably Empty" in the terminal which means that 
+	#	the license plate server did not find any license plate from the
+	#	image.
+	#
+	##########################################################################
 	def send_request(self, app, image_url, files):
 		global gd_open
 		with app.app_context():
@@ -890,6 +1688,25 @@ class MyMotionDetector(picamera.array.PiMotionAnalysis):
 				print "Probably Empty"
 				return
 
+	##########################################################################
+	# Function Name: agdopen()
+	#
+	# Parameters: self, flock
+	#
+	# Posted Data: None
+	#
+	# Return Value: None
+	#	
+	# Description:
+	#	When the function is called, we first check if flock (force lock) is
+	#	True or False. If flock is True, we don't turn on the LED lights. If
+	#	flock is False, we go into a while loop and call the gd_sense() 
+	#	function, which turns on the LED lights. Once the gd_sense() function
+	#	is done running, we set "wait" variable to None to get out of the
+	#	while loop. Else for any possuble error, return back to the motion
+	#	detector.
+	#
+	##########################################################################
 	def agdopen(self, flock):
 		wait = True
 		#Check if force lock is True or False
@@ -905,11 +1722,46 @@ class MyMotionDetector(picamera.array.PiMotionAnalysis):
 			return
 		return
 
+##########################################################################
+# Class Name: Camera
+#
+# Function Names: create_thread()
+#				  get_frame()
+#				  livestream()
+#
+# Parameters: object
+#
+# Posted Data: None
+#
+# Return Value: None
+#
+# Description:
+#	The Camera class is used for the livestreaming a motion jpeg stream
+#	that is used in the livestream page. It is used to create a thread to
+#	turn on the camera and start capturing images rapidly and return the
+#	frames back to the generate_frames() function.
+#
+##########################################################################
 class Camera(object):
     thread = None
     frame = None
     start = 0
 
+    ##########################################################################
+    # Function Name: create_thread()
+    #
+    # Parameters: self, brightness, hflip, vflip
+    #
+    # Posted Data: None
+    #
+    # Return Value: None
+    #
+    # Description:
+    #	Takes the parameters to be sent to the thread with the target function
+    #	livestream(). Start the thread after and ensure that while the frame
+    #	is None, don't sleep.
+    #
+    ##########################################################################
     def create_thread(self, brightness, hflip, vflip):
         if Camera.thread is None:
             #create the thread
@@ -920,11 +1772,49 @@ class Camera(object):
             while self.frame is None:
                 time.sleep(0)
 
+    ##########################################################################
+    # Function Name: get_frame()
+    #
+    # Parameters: self, brightness, hflip, vflip
+    #
+    # Posted Data: None
+    #
+    # Return Value:
+    #	self.frame
+    #
+    # Description:
+    #	The function is called from the generate_frames() function. Passing 
+    #	in the brightness, hflip, and vflip arguments. Calls the
+    #	create_thread() function and passes in the brightness, hflip, and
+    #	vflip parameters. Returns the frame feed from the camera.
+    #
+    ##########################################################################
     def get_frame(self, brightness, hflip, vflip):
         Camera.start = time.time()
         self.create_thread(brightness, hflip, vflip)
         return self.frame
 
+    ##########################################################################
+    # Function Name: livestream()
+    #
+    # Parameters: cls, brightness, hflip, vflip
+    #
+    # Posted Data: None
+    #
+    # Return Value: none
+    #
+    # Description:
+    #	Sets up the picamera for usage. Uses the settings sent from the
+    #	previous functions. Creates a stream for later usage. Use the
+    #	picameras continuous capture to capture images rapidly and send it
+    #	to the stream that was created. We then store the frame to be shown
+    #	and read that frame and send it to the get_frame() function to 
+    #	return that frame to the generate_frame() function. We then reset the
+    #	stream for the next frame. When there are no more users connected to
+    #	the livestream page, after 3 seconds, it will break out of the loop
+    #	and turn off the camera as well as closing the thread.
+    #
+    ##########################################################################
     @classmethod
     def livestream(cls, brightness, hflip, vflip):
         with picamera.PiCamera() as camera:
@@ -953,6 +1843,28 @@ class Camera(object):
 ##########################################################################
 #
 #							HELPER FUNCTIONS
+#
+##########################################################################
+
+##########################################################################
+# Function Name: load_user()
+#
+# Parameters: username
+#
+# Posted Data: None
+#
+# Return Value:
+#	String - _id
+#	String - _usename
+#	String - _password
+#
+# Description:
+#	Is a callback function from the flask-login library that is used to
+#	reload the user object from the user ID stored in the session. Checks
+#	if the user exist in the database. If it doesn't exist, return None
+#	(which means that the user will get an error message when trying to 
+#	log in). If the user exist, then get the _id in unicode, username
+#	and password and send to the User class to handle it.
 #
 ##########################################################################
 @login_manager.user_loader
