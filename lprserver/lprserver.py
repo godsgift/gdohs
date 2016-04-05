@@ -4,7 +4,7 @@
 # AUTHOR:       ELTON SIA
 #
 # PROGRAM:      A license plate reading server. The program takes in 
-#               images and uses the alpr (a license plate reading library)
+#               images and uses the ALPR (a license plate reading library)
 #               and tries to find characters from the images. Depending
 #               on what it finds, it will return the appropriate message.
 #

@@ -2001,7 +2001,7 @@ def gd_sense():
 #	location for the image files (motion-images/). The filename is in the
 #	format "Year-Month-Day,hourminutesecond.[h264/jpeg]". Depending on the
 #	save_location the extension would either be .h264 or .jpeg. An example
-#	would be "2016-04-01,0638011.jpeg".
+#	would be "2016-04-01,063801.jpeg".
 #
 ##########################################################################
 def create_savefile(save_location):
@@ -2193,4 +2193,4 @@ def delete_images():
 
 #Start the Flask application
 if __name__ == "__main__":
-	app.run(debug=True, host='0.0.0.0', threaded=True)
+	app.run(debug=True, host='0.0.0.0', port=5000, threaded=True)
