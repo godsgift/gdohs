@@ -1878,6 +1878,25 @@ def load_user(username):
 		_password = user_id["password"]
 	return User(_id, _username, _password)
 
+##########################################################################
+# Function Name: generate_frames()
+#
+# Parameters: camera, brightness, hflip, vflip
+#
+# Posted Data: None
+#
+# Return Value: None
+#
+# Description:
+#	The function takes in a camera object, brightness, hflip, and vflip.
+#	When the function gets called, it goes straight into a while loop and
+#	grabs the frame from the get_frame() function inside the Camera Class.
+#	It then yields the frame with the content type of image/jpeg. The
+#	yield keyword ensures that as soon as the 1 frame is sent, it gets
+#	erased. In this case, we only needed to show that 1 frame in less than
+#	a second and move on to the next frame.
+#
+##########################################################################
 def generate_frames(camera, brightness, hflip, vflip):
     #Video streaming generator function
     while True:
@@ -1885,6 +1904,23 @@ def generate_frames(camera, brightness, hflip, vflip):
         yield (b'--frame\r\n'
                b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
 
+##########################################################################
+# Function Name: reset_pass_email()
+#
+# Parameters: remail, firstname, lastname, link
+#
+# Posted Data: None
+#
+# Return Value: None
+#
+# Description:
+#	The function takes in remail, firstname, lastname, and link as its 
+#	parameters. We create a variable to store our email message inside
+#	msg. We set the subject line, sender, and recipients. We then use html
+#	as our body because we are adding in a link for the users to click on
+#	to send them to the reset password page. Send the email to the user.
+#
+##########################################################################
 def reset_pass_email(remail, firstname, lastname, link):
 	#Send reset password email
 	msg = Message("Hello " + firstname + " " + lastname,
@@ -1899,6 +1935,23 @@ def reset_pass_email(remail, firstname, lastname, link):
 	mail.send(msg)
 	return
 
+##########################################################################
+# Function Name: gd_sense()
+#
+# Parameters: None
+#
+# Posted Data: None
+#
+# Return Value: None
+#
+# Description:
+#	Uses the sense hat to first show a message "Opening". Then counts from
+#	3 to 0 while sleeping for 1 second each second. Then show the message
+#	"Opened", then count from 9 to 0  while sleeping for 1 second for each
+#	number. Then show the message "Closing", then count from 3 to 0 for
+#	each second. Then show the message "Closed", then clear the sensehat.
+#
+##########################################################################
 def gd_sense():
 	#Turns on the sensehat(LED lights portion)
 	sense = SenseHat()
