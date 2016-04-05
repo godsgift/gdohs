@@ -4,7 +4,7 @@
 # AUTHOR: 		ELTON SIA
 #
 # PROGRAM:		Web application for the automatic garage door opener and 
-#				home surveillance. 
+#				home surveillance (GDOHS). 
 #
 # DATE:			April 07, 2016
 #
@@ -197,11 +197,11 @@ def showSignup():
 # Parameters: None
 #
 # Posted Data:
-#	username
-#	password
-#	email
-#	first name
-#	last name
+#	_username
+#	_password
+#	_email
+#	_firstname
+#	_lastname
 #
 # Return Value:
 #	HTTP - sends user to the sign-up successful page
@@ -291,7 +291,7 @@ def showForgotPassword():
 # Parameters: None
 #
 # Posted Data:
-#	email
+#	_email
 #
 # Return Value:
 #	HTTP - Sends the user back to the forgot password page.
@@ -372,8 +372,7 @@ def forgotPassword():
 #
 # Parameters: token
 #
-# Posted Data:
-#	None
+# Posted Data: None
 #
 # Return Value:
 #	HTTP - Renders message page with error message
@@ -706,10 +705,10 @@ def showSettings():
 # Parameters: None
 #
 # Posted Data:
-#	brightness
-#	resolution
-#	horizontal flip
-#	vertical flip
+#	_brightness
+#	_resolution
+#	_horizontal flip
+#	_vertical flip
 #
 # Return Value:
 #	HTTP - Renders the settings page
@@ -1946,10 +1945,11 @@ def reset_pass_email(remail, firstname, lastname, link):
 #
 # Description:
 #	Uses the sense hat to first show a message "Opening". Then counts from
-#	3 to 0 while sleeping for 1 second each second. Then show the message
-#	"Opened", then count from 9 to 0  while sleeping for 1 second for each
-#	number. Then show the message "Closing", then count from 3 to 0 for
+#	3 to 0 for each second for each number. Then show the message 
+#	"Opened", then count from 9 to 0 for each second for each number. 
+#	Then show the message "Closing", then count from 3 to 0 for
 #	each second. Then show the message "Closed", then clear the sensehat.
+#	This function is used as a replacement for the garage door.
 #
 ##########################################################################
 def gd_sense():
@@ -1981,7 +1981,29 @@ def gd_sense():
 	sense.show_message("Closed", text_colour=[255, 0, 0], scroll_speed=0.03)
 	sense.clear()
 	
-
+##########################################################################
+# Function Name: create_savefile()
+#
+# Parameters: save_location
+#
+# Posted Data: None
+#
+# Return Value:
+#	String - filename (video)
+#	String - filename (image)
+#
+# Description:
+#	When the function is called a variable is passed to it called 
+#	save_location. The function is only expecting save_location to be
+#	either "video" or "image". If save_location is equal to "video", then
+#	create a filename with the location for the video files (videos/). If 
+#	save_location is equal to "image", then create a filename with the 
+#	location for the image files (motion-images/). The filename is in the
+#	format "Year-Month-Day,hourminutesecond.[h264/jpeg]". Depending on the
+#	save_location the extension would either be .h264 or .jpeg. An example
+#	would be "2016-04-01,0638011.jpeg".
+#
+##########################################################################
 def create_savefile(save_location):
 	#if the requested filename is for a video, create the filename for video
 	#else if its image, create the filename for image
@@ -1998,6 +2020,24 @@ def create_savefile(save_location):
 	else:
 		raise Exception("Incorrect save location")
 
+##########################################################################
+# Function Name: checkWhitespace()
+#
+# Parameters: word
+#
+# Posted Data: None
+#
+# Return Value:
+#	Boolean - checker
+#
+# Description:
+#	The function takes in the "word" parameter passed in when it is called.
+#	It then checks for all types of whitespaces including \t, \n, \f, and
+#	\v. If the word that was given have no whitespaces, set checker to 
+#	True and return checker. If there is a whitespace from the word given,
+#	then set checker to False and return checker.
+#
+##########################################################################
 def checkWhitespace(word):
 	#Checks for all types of whitespaces including \t, \n, \f, \v
 	ws = re.search('[\s+]', word)
@@ -2008,12 +2048,53 @@ def checkWhitespace(word):
 		checker = False
 	return checker
 
-def get_token(self, expiration=1800):
+##########################################################################
+# Function Name: get_token()
+#
+# Parameters: token, expiration
+#
+# Posted Data: None
+#
+# Return Value:
+#	String - serializedToken
+#	
+# Description:
+#	The function takes in the "token" and "expiration" parameter when it is
+#	called. The "token" parameter is a random integer between 0-200000. 
+#	The "expiration" parameter is always 1800 seconds (30 minutes). This
+#	means that the token created will only last 30 minutes and past that
+#	time, when it is decoded, it will give a Signature Expired error. It
+#	then returns a tokenized string. The function uses the flask's secret
+#	key to create the token.
+#
+##########################################################################
+def get_token(token, expiration=1800):
 	#Create token
 	s = Serializer(app.secret_key, expiration)
-	serializedToken = s.dumps(self)
+	serializedToken = s.dumps(token)
 	return serializedToken
 
+##########################################################################
+# Function Name: verify_token()
+#
+# Parameters: token
+#
+# Posted Data: None
+#
+# Return Value:
+#	Int - data
+#	String - "Signature Expired"
+#	String - "Bad Signature"
+#	
+# Description:
+#	The function takes in the "token" parameter and verifies the token
+#	that was previously created by the get_token function. The function
+#	uses the flask's secret key to decode the token. We put the decoder
+#	inside a try and except code to catch errors. If the data that is
+#	decoded is correct, return the data. If the data has an error, return
+#	with the appropriate error message.
+#
+##########################################################################
 def verify_token(token):
 	#Verifies token
 	s = Serializer(app.secret_key)
@@ -2025,12 +2106,49 @@ def verify_token(token):
 		return "Bad Signature"
 	return data
 
+##########################################################################
+# Function Name: username_to_userid()
+#
+# Parameters: username
+#
+# Posted Data: None
+#
+# Return Value:
+#	ObjectID - user_id
+#	
+# Description:
+#	The function takes in the "username" parameter when it is called and
+#	uses it to try and find a user in the database with the same username.
+#	It returns the user_id of that username.
+#
+##########################################################################
 def username_to_userid(username):
 	#Get the userid of the user from their username
 	find_user = mongo.db.user.find_one({"username": username})
 	user_id = find_user["_id"]
 	return user_id
 
+##########################################################################
+# Function Name: string_split_res()
+#
+# Parameters: resolution
+#
+# Posted Data: None
+#
+# Return Value:
+#	List - [int(width), int(height)]
+#	
+# Description:
+#	The function takes in the "resolution" parameter when it is called. It
+#	splits the resolution from the "x" keyword. and stores the left side
+#	as "width" and the right side as "height". For example, if resolution
+#	is equal to "150x200", then when it is ran with the function, it will
+#	split that string into two separate strings by "x": 150 and 200. We
+#	then cast those strings into numbers and store them to width and
+#	height. In this case, we will get width equal to int 150 and height
+#	equal to int 200. Then we return both width and height as a list.
+#
+##########################################################################
 def string_split_res(resolution):
 	#get the width and height of the resolution
 	changed_res = str(resolution)
@@ -2039,6 +2157,22 @@ def string_split_res(resolution):
 	height = int(split[1])
 	return width, height
 
+##########################################################################
+# Function Name: delete_images()
+#
+# Parameters: None
+#
+# Posted Data: None
+#
+# Return Value: None
+#	
+# Description:
+#	When the function is called, it checks if there are any files inside
+#	the folder "motion-images". If files do exist, then delete all of
+#	files inside that folder. If there are no files inside the folder,
+#	then just print "Empty".
+#
+##########################################################################
 def delete_images():
 	#Deletes all the images captured by the motion detector
 	folder = "motion-images"
@@ -2051,5 +2185,12 @@ def delete_images():
 		print "Empty"
 		return
 
+##########################################################################
+#
+#                                MAIN
+#
+##########################################################################
+
+#Start the Flask application
 if __name__ == "__main__":
 	app.run(debug=True, host='0.0.0.0', threaded=True)
