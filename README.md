@@ -82,7 +82,7 @@ Note: Ensure that "SECRET_KEY" inside both the config file matches.
 
 2. **Laptop/Desktop Server**
 	- Ensure that the necessary changes have been made to the configuration file before running the program
-	- Ensure that the necessar folders are created:
+	- Ensure that the necessary folders are created:
 		- motion-images
 		- videos
 	- We will only need to run the license plate reading server in this machine
