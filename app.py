@@ -43,6 +43,7 @@ from flask.ext.pymongo import PyMongo
 from flask_mail import Mail, Message
 from flask.ext.bcrypt import Bcrypt
 from flask.ext.login import LoginManager, UserMixin, login_required, login_user, logout_user, current_user
+from flask_sslify import SSLify
 
 
 ##########################################################################

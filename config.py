@@ -2,8 +2,8 @@
 SECRET_KEY = "You will never find me"
 
 #EMAIL CONFIG
-Mail_User = "stevenharperfan1@gmail.com"
-Mail_Pass = "uest1onQ?"
+Mail_User = 
+Mail_Pass = 
 
 #DATABASE CONFIG
 DB_Name = "gdohs"
@@ -11,5 +11,5 @@ DB_User = "gdohs"
 DB_Pass = "weW!LLrockU"
 
 #Servers
-RPI_Server = "192.168.0.31:5000"
-LPR_Server = "192.168.0.32:5000"
+RPI_Server = "192.168.0.25:5000"
+LPR_Server = "192.168.0.19:5000"
